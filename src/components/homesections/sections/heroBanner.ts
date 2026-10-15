@@ -156,7 +156,7 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
     html += '<div class="homeHero-scrim"></div>';
     html += '<div class="homeHero-content padded-left padded-right"></div>';
     if (items.length > 1) {
-        html += '<div class="homeHero-dots padded-right" role="tablist">';
+        html += '<div class="homeHero-dots" role="tablist">';
         items.forEach((item, index) => {
             html += `<button type="button" class="homeHero-dot${index === 0 ? ' is-active' : ''}" data-index="${index}" aria-label="${escapeHtml(item.Name || '')}"><span></span></button>`;
         });

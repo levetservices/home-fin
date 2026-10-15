@@ -201,14 +201,26 @@ export async function loadRecommendations(elem: HTMLElement, apiClient: ApiClien
     ]);
 
     // Interleave so personal rows lead and generic rows break them up.
-    const personal = [...showRows, ...movieRows];
+    // Suggestions shouldn't repeat things the user has already finished.
+    const personal = [...showRows, ...movieRows].map(row => ({
+        ...row,
+        items: row.items.filter(item => !item.UserData?.Played)
+    }));
     const rows: Row[] = [];
     if (personal.length) rows.push(personal.shift() as Row);
     if (topRated) rows.push(topRated);
     if (personal.length) rows.push(personal.shift() as Row);
     rows.push(...genreRows.slice(0, 1), ...personal, ...genreRows.slice(1));
 
-    const visible = rows.filter(row => row.title && row.items.length >= MIN_ROW_ITEMS);
+    // Small libraries often produce near-identical rows; show each set of titles once.
+    const seen = new Set<string>();
+    const visible = rows.filter(row => {
+        if (!row.title || row.items.length < MIN_ROW_ITEMS) return false;
+        const key = row.items.slice(0, MIN_ROW_ITEMS * 2).map(item => item.Id).sort().join();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
     if (!visible.length || !elem.isConnected) {
         elem.innerHTML = '';
         return;

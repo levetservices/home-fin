@@ -240,6 +240,17 @@ a,
     background: var(--hf-accent);
 }
 
+/* Placeholder art (no image): soft tinted glass instead of flat bright blocks */
+.defaultCardBackground1 { background: linear-gradient(135deg, #1e3a5f, #12203a); }
+.defaultCardBackground2 { background: linear-gradient(135deg, #3a2a5f, #1d1638); }
+.defaultCardBackground3 { background: linear-gradient(135deg, #1f4a48, #10292a); }
+.defaultCardBackground4 { background: linear-gradient(135deg, #4a2f24, #2a1913); }
+.defaultCardBackground5 { background: linear-gradient(135deg, #2c3440, #171b22); }
+
+.cardImageIcon {
+    color: rgba(255, 255, 255, 0.55);
+}
+
 /* ── Buttons ──────────────────────────────────────────────────────────── */
 
 .emby-button.raised,
@@ -354,6 +365,11 @@ a,
 .detailPagePrimaryContainer,
 .detailPageSecondaryContainer {
     background: transparent;
+}
+
+.noBackdropTransparency .detailPagePrimaryContainer,
+.noBackdropTransparency .detailPageSecondaryContainer {
+    background-color: var(--hf-bg);
 }
 
 .detailRibbon {
