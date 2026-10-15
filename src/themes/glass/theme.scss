@@ -1,40 +1,45 @@
 /*
- * Home Fin "Glass" theme.
+ * Home Fin "Glass" theme — modelled on the Apple TV app.
  *
- * An iOS / visionOS inspired skin: frosted translucent chrome, rounded cards,
- * pill buttons and Apple system blue. It is layered on top of the stock Dark
- * theme so that anything not restyled here still looks right, and so that
- * upstream fixes to the Dark theme keep flowing through on merge.
+ * Principles: pure black canvas, content first; chrome floats as small
+ * frosted-glass capsules rather than full-width bars; monochrome (white is
+ * the accent, colour comes from the artwork); quiet, semibold type; left
+ * aligned captions; cards that lift gently on hover.
+ *
+ * Layered on top of the stock Dark theme so anything not restyled here still
+ * looks right and upstream fixes to Dark keep flowing through on merge.
  */
 @use '../dark/theme';
 
 :root {
-    --hf-accent: #0a84ff;
-    --hf-accent-soft: rgba(10, 132, 255, 0.22);
-    --hf-bg: #050507;
+    --hf-bg: #000;
+    --hf-surface: #1c1c1e;
     --hf-text: rgba(255, 255, 255, 0.92);
     --hf-text-secondary: rgba(235, 235, 245, 0.6);
-    --hf-glass: rgba(36, 36, 40, 0.55);
-    --hf-glass-strong: rgba(28, 28, 32, 0.82);
-    --hf-glass-fill: rgba(255, 255, 255, 0.08);
-    --hf-glass-fill-hover: rgba(255, 255, 255, 0.14);
-    --hf-glass-border: rgba(255, 255, 255, 0.1);
-    --hf-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    --hf-blur: saturate(180%) blur(28px);
+    --hf-text-tertiary: rgba(235, 235, 245, 0.38);
+    --hf-accent: #fff;
+    --hf-tint: #0a84ff;
+    --hf-glass: rgba(44, 44, 48, 0.52);
+    --hf-glass-strong: rgba(30, 30, 32, 0.86);
+    --hf-glass-fill: rgba(255, 255, 255, 0.1);
+    --hf-glass-fill-hover: rgba(255, 255, 255, 0.18);
+    --hf-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    --hf-blur: saturate(180%) blur(30px);
     --hf-radius-sm: 10px;
-    --hf-radius: 14px;
+    --hf-radius: 12px;
     --hf-radius-lg: 22px;
-    --hf-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-    --hf-font: -apple-system, blinkmacsystemfont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans", "Noto Sans HK", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC", "Noto Sans TC", sans-serif;
+    --hf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --hf-lift-shadow: 0 18px 40px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.5);
+    --hf-font: -apple-system, blinkmacsystemfont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable Display", "Segoe UI", "Noto Sans", "Noto Sans HK", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC", "Noto Sans TC", sans-serif;
 }
 
-/* ── Base ─────────────────────────────────────────────────────────────── */
+/* ── Canvas & type ────────────────────────────────────────────────────── */
 
 html,
 html[lang] {
     font-family: var(--hf-font);
     color: var(--hf-text);
-    letter-spacing: -0.005em;
+    letter-spacing: -0.003em;
 }
 
 html,
@@ -45,141 +50,211 @@ html,
     background-color: var(--hf-bg);
 }
 
-.backgroundContainer:not(.withBackdrop) {
-    background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(10, 132, 255, 0.12), transparent 60%),
-        radial-gradient(900px 500px at 100% 0%, rgba(191, 90, 242, 0.1), transparent 60%),
-        var(--hf-bg);
-}
-
 .backgroundContainer.withBackdrop {
-    background-color: rgba(5, 5, 7, 0.82);
+    background-color: rgba(0, 0, 0, 0.9);
 }
 
 * {
-    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 ::selection {
-    background: var(--hf-accent-soft);
+    background: rgba(255, 255, 255, 0.25);
 }
 
 h1,
 h2,
-h3,
-.sectionTitle {
-    font-weight: 700;
-    letter-spacing: -0.02em;
+h3 {
+    font-weight: 600;
+    letter-spacing: -0.015em;
+}
+
+.sectionTitle,
+.sectionTitle-cards {
+    font-size: 1.28em;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    color: #fff;
 }
 
 .sectionTitle-cards {
-    font-size: 1.35em;
+    margin-bottom: 0.15em;
+}
+
+.sectionTitleTextButton .material-icons,
+.sectionTitle .material-icons {
+    font-size: 1.1em;
+    color: var(--hf-text-tertiary);
+}
+
+.homeSectionsContainer > .verticalSection,
+.homeRecommendationRow {
+    margin-bottom: 1.4em;
 }
 
 .secondaryText,
-.cardText-secondary,
 .fieldDescription {
     color: var(--hf-text-secondary);
 }
 
 a,
 .button-link {
-    color: var(--hf-accent);
+    color: var(--hf-tint);
 }
 
-/* ── Header: translucent nav bar ──────────────────────────────────────── */
+/* ── Header: floating glass capsules, no bar ──────────────────────────── */
 
+.skinHeader,
 .skinHeader-withBackground,
 .skinHeader.semiTransparent {
-    background-color: var(--hf-glass);
-    backdrop-filter: var(--hf-blur);
-    box-shadow: 0 1px 0 var(--hf-glass-border);
-}
-
-/* Over the home banner the bar starts clear and frosts once you scroll. */
-.skinHeader.hf-overHero:not(.hf-scrolled) {
-    background-color: transparent;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.35) 55%, rgba(0, 0, 0, 0) 100%);
     backdrop-filter: none;
     box-shadow: none;
-    background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent);
 }
 
-.skinHeader {
-    transition: background-color 0.3s ease, box-shadow 0.3s ease, backdrop-filter 0.3s ease;
+.headerTop {
+    padding: 0.7em 0.6em;
 }
 
-.headerButton {
+.headerLeft .headerButton,
+.headerRight {
+    background: var(--hf-glass);
+    backdrop-filter: var(--hf-blur);
+    box-shadow: var(--hf-glass-edge);
+}
+
+.headerLeft .headerButton {
+    width: 2.6em;
+    height: 2.6em;
+    margin-right: 0.45em;
     border-radius: 999px;
 }
 
-/* Tabs become an iOS segmented control */
+.headerRight {
+    border-radius: 999px;
+    padding: 0.15em 0.3em;
+    gap: 0.1em;
+}
+
+.headerRight .headerButton {
+    width: 2.4em;
+    height: 2.4em;
+    margin: 0;
+    border-radius: 999px;
+}
+
+.headerButton .material-icons {
+    font-size: 1.3em;
+}
+
+.pageTitleWithDefaultLogo {
+    height: 1.4em;
+    margin-left: 0.4em;
+    opacity: 0.9;
+}
+
+/* On wide screens the tabs share the top row: centre them on it exactly. */
+@media all and (min-width: 100em) {
+    .headerTop {
+        padding: 0.7em 0.6em;
+    }
+
+    .skinHeader .headerTabs {
+        position: absolute;
+        top: env(safe-area-inset-top);
+        bottom: 0;
+        left: 50%;
+        margin: 0;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+    }
+
+    .skinHeader .headerTabs .emby-tabs-slider {
+        margin: 0;
+    }
+}
+
+/* Tabs: a centred capsule, selected item a lighter capsule. */
 .headerTabs .emby-tabs-slider,
 .libraryPage .emby-tabs-slider {
     display: inline-flex;
     gap: 2px;
-    padding: 3px;
-    margin: 0.35em 0;
+    padding: 4px;
+    margin: 0.3em 0;
     border-radius: 999px;
-    background: var(--hf-glass-fill);
-    box-shadow: var(--hf-glass-highlight);
+    background: var(--hf-glass);
+    backdrop-filter: var(--hf-blur);
+    box-shadow: var(--hf-glass-edge);
 }
 
 .emby-tab-button {
-    padding: 0.55em 1.2em;
+    padding: 0.5em 1.15em;
     border-radius: 999px;
+    font-weight: 500;
+    font-size: 0.95em;
     color: var(--hf-text-secondary);
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: background-color 0.25s var(--hf-ease), color 0.25s var(--hf-ease);
 }
 
 .emby-tab-button:hover {
-    color: var(--hf-text);
+    color: #fff;
 }
 
 .emby-tab-button-active,
 .emby-tab-button-active.show-focus {
     color: #fff;
-    background: rgba(255, 255, 255, 0.18);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), var(--hf-glass-highlight);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.16);
 }
 
 .emby-tab-button.show-focus:focus {
     transform: none !important;
-    background: var(--hf-glass-fill-hover) !important;
+    color: #000;
+    background: #fff !important;
 }
 
-/* ── Side drawer ──────────────────────────────────────────────────────── */
+/* ── Side menu ────────────────────────────────────────────────────────── */
 
-.mainDrawer {
+.mainDrawer,
+.drawer-open {
     background-color: var(--hf-glass-strong);
     backdrop-filter: var(--hf-blur);
-    border-right: 1px solid var(--hf-glass-border);
 }
 
 .navMenuOption {
-    margin: 2px 0.6em;
+    margin: 1px 0.7em;
+    padding-top: 0.75em;
+    padding-bottom: 0.75em;
     border-radius: var(--hf-radius-sm);
+    font-weight: 500;
     transition: background-color 0.15s ease;
 }
 
 .navMenuOption:hover {
-    background: var(--hf-glass-fill);
+    background: rgba(255, 255, 255, 0.07);
 }
 
 .navMenuOption-selected {
-    background: var(--hf-accent-soft) !important;
+    background: rgba(255, 255, 255, 0.14) !important;
     color: #fff;
 }
 
+.navMenuOptionIcon {
+    color: var(--hf-text-secondary);
+}
+
 .navMenuOption-selected .navMenuOptionIcon {
-    color: var(--hf-accent);
+    color: #fff;
 }
 
 .sidebarHeader {
-    color: var(--hf-text-secondary);
-    font-size: 0.8em;
+    margin-top: 1.2em;
+    color: var(--hf-text-tertiary);
+    font-size: 0.75em;
     font-weight: 600;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
 }
 
 /* ── Cards ────────────────────────────────────────────────────────────── */
@@ -193,62 +268,128 @@ a,
 }
 
 .cardBox:not(.visualCardBox) .cardPadder {
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--hf-surface);
 }
 
 .cardScalable {
     border-radius: var(--hf-radius);
-    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+    transition: transform 0.35s var(--hf-ease), box-shadow 0.35s var(--hf-ease);
+}
+
+.detailImageContainer .card .cardScalable {
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+
+/* Apple TV-style lift with a faint top sheen. */
+.cardScalable::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 40%);
+    opacity: 0;
+    transition: opacity 0.35s var(--hf-ease);
 }
 
 @media (hover: hover) and (pointer: fine) {
     .card:hover .cardScalable {
-        transform: scale(1.04);
-        box-shadow: var(--hf-shadow);
+        transform: scale(1.045);
+        box-shadow: var(--hf-lift-shadow);
         z-index: 2;
+    }
+
+    .card:hover .cardScalable::after {
+        opacity: 1;
     }
 }
 
+.card.show-focus:focus .cardScalable {
+    box-shadow: var(--hf-lift-shadow);
+}
+
+.card.show-focus:focus .cardScalable::after {
+    opacity: 1;
+}
+
+/* Captions sit under the artwork, left aligned, in two quiet weights.
+   (Plain captions are direct children of .cardBox; logo/list cards wrap them in .cardFooter.) */
+.cardBox > .cardText,
+.cardFooter .cardText,
+.cardBox > .cardTextCentered,
+.cardFooter .cardTextCentered {
+    text-align: start !important; /* card.scss centres with !important */
+    padding-left: 0.15em;
+    padding-right: 0.15em;
+}
+
+.cardBox > .cardText-first,
+.cardFooter .cardText-first {
+    padding-top: 0.6em;
+    font-size: 0.92em;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.cardBox > .cardText-secondary,
+.cardFooter .cardText-secondary {
+    font-size: 0.82em;
+    color: var(--hf-text-secondary);
+}
+
 .visualCardBox {
-    background: var(--hf-glass-fill);
+    background: var(--hf-surface);
     border-radius: var(--hf-radius);
-    box-shadow: var(--hf-glass-highlight);
 }
 
-.cardText {
-    letter-spacing: -0.01em;
+/* Thin, inset progress bar like the Up Next row. */
+.innerCardFooter {
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+    border-radius: 0 0 var(--hf-radius) var(--hf-radius);
 }
 
-.cardOverlayButton-hover,
-.cardOverlayButtonIcon {
-    background: rgba(30, 30, 34, 0.55) !important;
-    backdrop-filter: blur(12px);
+.innerCardFooterClear {
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0));
+    padding: 0.9em 0.75em 0.7em;
+}
+
+.itemProgressBar {
+    height: 4px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .itemProgressBarForeground {
     background-color: #fff;
-}
-
-.itemProgressBar {
-    background: rgba(255, 255, 255, 0.25);
     border-radius: 999px;
-    overflow: hidden;
 }
 
 .playedIndicator,
 .countIndicator {
-    background: var(--hf-accent);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(16px);
+    box-shadow: var(--hf-glass-edge);
+    color: #fff;
 }
 
-/* Placeholder art (no image): soft tinted glass instead of flat bright blocks */
-.defaultCardBackground1 { background: linear-gradient(135deg, #1e3a5f, #12203a); }
-.defaultCardBackground2 { background: linear-gradient(135deg, #3a2a5f, #1d1638); }
-.defaultCardBackground3 { background: linear-gradient(135deg, #1f4a48, #10292a); }
-.defaultCardBackground4 { background: linear-gradient(135deg, #4a2f24, #2a1913); }
-.defaultCardBackground5 { background: linear-gradient(135deg, #2c3440, #171b22); }
+.cardOverlayButton-hover,
+.cardOverlayButtonIcon {
+    background: rgba(40, 40, 44, 0.55) !important;
+    backdrop-filter: blur(16px);
+}
+
+/* Placeholder art (no image): neutral graphite instead of bright blocks. */
+.defaultCardBackground1,
+.defaultCardBackground2,
+.defaultCardBackground3,
+.defaultCardBackground4,
+.defaultCardBackground5 {
+    background: linear-gradient(160deg, #2c2c2e, #1c1c1e);
+}
 
 .cardImageIcon {
-    color: rgba(255, 255, 255, 0.55);
+    color: rgba(255, 255, 255, 0.35);
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────── */
@@ -257,14 +398,16 @@ a,
 .raised,
 .button-submit,
 .button-cancel,
-.fab {
+.fab,
+.detailButton,
+.emby-button.detailButton {
     border-radius: 999px;
 }
 
 .raised {
     background: var(--hf-glass-fill);
     color: var(--hf-text);
-    box-shadow: var(--hf-glass-highlight);
+    box-shadow: var(--hf-glass-edge);
 }
 
 .raised:focus,
@@ -272,19 +415,16 @@ a,
     background: var(--hf-glass-fill-hover);
 }
 
+/* Primary action: white capsule, black label. */
 .button-submit {
-    background: var(--hf-accent);
-    color: #fff;
+    background: #fff;
+    color: #000;
+    font-weight: 600;
 }
 
 .button-submit:focus,
 .button-submit:hover {
-    background: #3b9bff;
-}
-
-.detailButton,
-.emby-button.detailButton {
-    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.85);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -294,10 +434,14 @@ a,
     }
 }
 
-.paper-icon-button-light:active:not(:disabled),
-.paper-icon-button-light.show-focus:focus {
+.paper-icon-button-light:active:not(:disabled) {
     color: #fff;
     background-color: var(--hf-glass-fill-hover);
+}
+
+.paper-icon-button-light.show-focus:focus {
+    color: #000;
+    background-color: #fff;
 }
 
 /* ── Forms ────────────────────────────────────────────────────────────── */
@@ -305,7 +449,7 @@ a,
 .emby-input,
 .emby-textarea,
 .emby-select-withcolor {
-    background: var(--hf-glass-fill);
+    background: rgba(118, 118, 128, 0.24);
     border: 1px solid transparent;
     border-radius: var(--hf-radius-sm);
 }
@@ -313,18 +457,18 @@ a,
 .emby-input:focus,
 .emby-textarea:focus,
 .emby-select-withcolor:focus {
-    border-color: var(--hf-accent);
-    box-shadow: 0 0 0 3px var(--hf-accent-soft);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
 }
 
 .emby-checkbox:checked + span + .checkboxOutline,
 .emby-radio:checked + .radioButtonLabel .radioButtonOutline {
-    border-color: var(--hf-accent);
-    background-color: var(--hf-accent);
+    border-color: var(--hf-tint);
+    background-color: var(--hf-tint);
 }
 
 .emby-collapsible-button {
-    border-color: var(--hf-glass-border);
+    border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* ── Dialogs, sheets and menus ────────────────────────────────────────── */
@@ -335,8 +479,7 @@ a,
 .nowPlayingContextMenu {
     background-color: var(--hf-glass-strong);
     backdrop-filter: var(--hf-blur);
-    border: 1px solid var(--hf-glass-border);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), var(--hf-glass-highlight);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), var(--hf-glass-edge);
 }
 
 .dialog:not(.dialog-fullscreen) {
@@ -357,31 +500,52 @@ a,
     background: var(--hf-glass-strong);
     backdrop-filter: var(--hf-blur);
     border-radius: 999px;
-    border: 1px solid var(--hf-glass-border);
+    box-shadow: var(--hf-glass-edge);
 }
 
 /* ── Item detail page ─────────────────────────────────────────────────── */
 
 .detailPagePrimaryContainer,
-.detailPageSecondaryContainer {
+.detailPageSecondaryContainer,
+.noBackdropTransparency .detailPagePrimaryContainer,
+.noBackdropTransparency .detailPageSecondaryContainer {
     background: transparent;
 }
 
-.noBackdropTransparency .detailPagePrimaryContainer,
-.noBackdropTransparency .detailPageSecondaryContainer {
-    background-color: var(--hf-bg);
-}
-
-.detailRibbon {
-    background: linear-gradient(180deg, rgba(5, 5, 7, 0) 0%, rgba(5, 5, 7, 0.85) 100%);
-}
-
+.detailRibbon,
 .layout-desktop .detailRibbon {
-    background-color: transparent;
+    background: transparent;
 }
 
+/* Fade the artwork into the (dimmed) page backdrop rather than to a black band. */
 .itemBackdrop::after {
-    background: linear-gradient(180deg, rgba(5, 5, 7, 0) 40%, var(--hf-bg) 100%);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.9) 100%);
+}
+
+/* Watched / favourite states stay monochrome. */
+.playstatebutton-icon-played,
+.ratingbutton-icon-withrating {
+    color: #fff;
+}
+
+.mainDetailButtons .detailButton {
+    background: var(--hf-glass);
+    backdrop-filter: var(--hf-blur);
+    box-shadow: var(--hf-glass-edge);
+    margin-right: 0.6em;
+}
+
+.mainDetailButtons .btnPlay {
+    background: #fff;
+    color: #000;
+}
+
+.mainDetailButtons .detailButton:hover {
+    background: var(--hf-glass-fill-hover);
+}
+
+.mainDetailButtons .btnPlay:hover {
+    background: rgba(255, 255, 255, 0.85);
 }
 
 /* ── Player ───────────────────────────────────────────────────────────── */
@@ -389,19 +553,35 @@ a,
 .videoOsdBottom .osdControls {
     background: var(--hf-glass);
     backdrop-filter: var(--hf-blur);
-    border: 1px solid var(--hf-glass-border);
+    box-shadow: var(--hf-glass-edge);
     border-radius: var(--hf-radius-lg);
-    margin: 0 1em 1em;
-    padding: 0.6em 1em;
+    margin: 0 1.5em 1.5em;
+    padding: 0.6em 1.2em;
 }
 
 .nowPlayingBar {
     background: var(--hf-glass-strong);
     backdrop-filter: var(--hf-blur);
-    border-top: 1px solid var(--hf-glass-border);
+    box-shadow: 0 -0.5px 0 rgba(255, 255, 255, 0.12);
 }
 
 .mdl-slider-background-lower,
 .sliderBubble {
     background: #fff;
+}
+
+.mdl-spinner__layer {
+    border-color: #fff !important;
+}
+
+/* ── Experimental (MUI) layout ────────────────────────────────────────── */
+
+.MuiAppBar-root {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0)) !important;
+    box-shadow: none !important;
+}
+
+.MuiDrawer-paper {
+    background-color: var(--hf-glass-strong) !important;
+    backdrop-filter: var(--hf-blur);
 }
