@@ -45,9 +45,10 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     inset: 0;
     z-index: -1;
     pointer-events: none;
+    // The bottom fade is listed first so it paints on top and ends exactly on the page colour.
     background:
-        linear-gradient(77deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 85%),
-        linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, var(--hf-bg, #141414) 100%);
+        linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, var(--hf-bg, #141414) 100%),
+        linear-gradient(77deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 85%);
 }
 
 .homeHero-content {

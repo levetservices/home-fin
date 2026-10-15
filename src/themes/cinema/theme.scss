@@ -112,19 +112,21 @@ a,
     border-radius: 4px;
 }
 
-/* The red wordmark in place of the Jellyfin logo. */
-.pageTitleWithDefaultLogo {
+/* The red wordmark in place of the Jellyfin logo, on every page
+   (page names are already in the nav and tabs, as on Netflix). */
+.skinHeader .pageTitle {
     width: auto;
     height: auto;
     margin-left: 0.5em;
+    font-size: 0;
     background-image: none !important;
 }
 
-.pageTitleWithDefaultLogo::before {
+.skinHeader .pageTitle::before {
     content: var(--hf-wordmark);
     display: block;
     font-family: "Arial Black", "Helvetica Neue", helvetica, arial, sans-serif;
-    font-size: 1.55em;
+    font-size: 1.8rem;
     font-weight: 900;
     line-height: 1;
     letter-spacing: -0.045em;
@@ -158,6 +160,20 @@ a,
     /* The nav already offers Home / My List, so hide Home's own tabs. */
     body:has(.homePage:not(.hide)) .skinHeader .headerTabs {
         display: none;
+    }
+}
+
+/* Library tabs get their own row under the nav instead of squeezing into it. */
+@media all and (min-width: 100em) {
+    .skinHeader .headerTabs {
+        margin-top: 0;
+        align-self: flex-start;
+        padding-left: 3.3%;
+    }
+
+    .libraryPage:not(.noSecondaryNavPage),
+    .pageWithAbsoluteTabs:not(.noSecondaryNavPage) {
+        padding-top: 7.6em !important;
     }
 }
 
