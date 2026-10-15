@@ -1,18 +1,18 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base-item-dto';
 import type { RecommendationDto } from '@jellyfin/sdk/lib/generated-client/models/recommendation-dto';
-import escapeHtml from 'escape-html';
 import type { ApiClient } from 'jellyfin-apiclient';
 
-import cardBuilder from 'components/cardbuilder/cardBuilder';
-import imageLoader from 'components/images/imageLoader';
 import globalize from 'lib/globalize';
-import { getBackdropShape } from 'utils/card';
 
-import type { SectionOptions } from './section';
+import { ROW_FIELDS, ROW_IMAGE_TYPES } from '../rows/artwork';
+import { renderRow, type RowKind } from '../rows/mediaRow';
 
 interface Row {
     title: string
     items: BaseItemDto[]
+    kind?: RowKind
+    /** Show the row even with few titles (e.g. a short My List). */
+    alwaysShow?: boolean
 }
 
 const ROW_ITEM_LIMIT = 16;
@@ -20,8 +20,9 @@ const ROW_ITEM_LIMIT = 16;
 const MIN_ROW_ITEMS = 3;
 const GENRE_ROW_COUNT = 2;
 
-const ITEM_FIELDS = 'PrimaryImageAspectRatio,MediaSourceCount';
-const IMAGE_TYPES = 'Primary,Backdrop,Thumb';
+const TOP10_MIN_ITEMS = 5;
+const ITEM_FIELDS = ROW_FIELDS;
+const IMAGE_TYPES = ROW_IMAGE_TYPES;
 
 function getRecommendationTitle(rec: RecommendationDto) {
     const name = rec.BaselineItemName || '';
@@ -90,22 +91,38 @@ async function getShowRows(apiClient: ApiClient): Promise<Row[]> {
     }));
 }
 
-/** The best-rated films and shows the user hasn't watched yet. */
-async function getTopRatedRow(apiClient: ApiClient): Promise<Row> {
+/** Netflix-style "Top 10": the ten best-rated films and shows in the library. */
+async function getTop10Row(apiClient: ApiClient): Promise<Row> {
     const result = await apiClient.getItems(apiClient.getCurrentUserId(), {
         IncludeItemTypes: 'Movie,Series',
         Recursive: true,
-        IsPlayed: false,
         SortBy: 'CommunityRating,SortName',
         SortOrder: 'Descending',
-        MinCommunityRating: 6,
+        HasCommunityRating: true,
+        Limit: 10,
+        Fields: ITEM_FIELDS,
+        ImageTypeLimit: 1,
+        EnableImageTypes: IMAGE_TYPES,
+        EnableTotalRecordCount: false
+    });
+    return { title: globalize.translate('HeaderTop10'), items: result.Items || [], kind: 'top10' };
+}
+
+/** "My List": the user's favourite films and shows, most recently added first. */
+async function getMyListRow(apiClient: ApiClient): Promise<Row> {
+    const result = await apiClient.getItems(apiClient.getCurrentUserId(), {
+        IncludeItemTypes: 'Movie,Series',
+        Recursive: true,
+        Filters: 'IsFavorite',
+        SortBy: 'DateCreated',
+        SortOrder: 'Descending',
         Limit: ROW_ITEM_LIMIT,
         Fields: ITEM_FIELDS,
         ImageTypeLimit: 1,
         EnableImageTypes: IMAGE_TYPES,
         EnableTotalRecordCount: false
     });
-    return { title: globalize.translate('HeaderTopRated'), items: result.Items || [] };
+    return { title: globalize.translate('HeaderMyList'), items: result.Items || [] };
 }
 
 function shuffle<T>(list: T[]) {
@@ -156,47 +173,16 @@ async function safely<T>(source: () => Promise<T>, fallback: T): Promise<T> {
     }
 }
 
-function getRowHtml(row: Row, { enableOverflow }: SectionOptions) {
-    let html = '<div class="verticalSection homeRecommendationRow">';
-    html += `<h2 class="sectionTitle sectionTitle-cards padded-left">${escapeHtml(row.title)}</h2>`;
-    if (enableOverflow) {
-        html += '<div is="emby-scroller" class="padded-top-focusscale padded-bottom-focusscale" data-centerfocus="true">';
-        html += '<div is="emby-itemscontainer" class="itemsContainer scrollSlider focuscontainer-x">';
-    } else {
-        html += '<div is="emby-itemscontainer" class="itemsContainer padded-left padded-right vertical-wrap focuscontainer-x">';
-    }
-
-    html += cardBuilder.getCardsHtml({
-        items: row.items,
-        shape: getBackdropShape(enableOverflow),
-        preferThumb: true,
-        inheritThumb: false,
-        showTitle: true,
-        showYear: true,
-        centerText: true,
-        overlayPlayButton: true,
-        allowBottomPadding: false,
-        lazy: true,
-        context: 'home',
-        lines: 2
-    });
-
-    if (enableOverflow) {
-        html += '</div>';
-    }
-    html += '</div></div>';
-    return html;
-}
-
 /**
- * Netflix-style personalised rows: Jellyfin's movie recommendations, shows
- * similar to what was watched last, top rated unwatched titles and genre rows.
+ * Netflix-style personalised rows: "Because you watched…", Top 10, My List,
+ * and genre rows. Each row is rendered into its own child element.
  */
-export async function loadRecommendations(elem: HTMLElement, apiClient: ApiClient, options: SectionOptions) {
-    const [movieRows, showRows, topRated, genreRows] = await Promise.all([
+export async function loadRecommendations(elem: HTMLElement, apiClient: ApiClient) {
+    const [movieRows, showRows, top10, myList, genreRows] = await Promise.all([
         safely(() => getMovieRows(apiClient), []),
         safely(() => getShowRows(apiClient), []),
-        safely(() => getTopRatedRow(apiClient), null),
+        safely(() => getTop10Row(apiClient), null),
+        safely(() => getMyListRow(apiClient), null),
         safely(() => getGenreRows(apiClient), [])
     ]);
 
@@ -207,25 +193,29 @@ export async function loadRecommendations(elem: HTMLElement, apiClient: ApiClien
         items: row.items.filter(item => !item.UserData?.Played)
     }));
     const rows: Row[] = [];
+    if (myList) rows.push({ ...myList, alwaysShow: true });
     if (personal.length) rows.push(personal.shift() as Row);
-    if (topRated) rows.push(topRated);
+    if (top10 && top10.items.length >= TOP10_MIN_ITEMS) rows.push(top10);
     if (personal.length) rows.push(personal.shift() as Row);
     rows.push(...genreRows.slice(0, 1), ...personal, ...genreRows.slice(1));
 
     // Small libraries often produce near-identical rows; show each set of titles once.
     const seen = new Set<string>();
     const visible = rows.filter(row => {
-        if (!row.title || row.items.length < MIN_ROW_ITEMS) return false;
+        if (!row.title || !row.items.length) return false;
+        if (row.alwaysShow || row.kind === 'top10') return true;
+        if (row.items.length < MIN_ROW_ITEMS) return false;
         const key = row.items.slice(0, MIN_ROW_ITEMS * 2).map(item => item.Id ?? '').sort((a, b) => a.localeCompare(b)).join();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
     });
-    if (!visible.length || !elem.isConnected) {
-        elem.innerHTML = '';
-        return;
-    }
 
-    elem.innerHTML = visible.map(row => getRowHtml(row, options)).join('');
-    imageLoader.lazyChildren(elem);
+    if (!elem.isConnected) return;
+    elem.innerHTML = '';
+    for (const row of visible) {
+        const rowElem = document.createElement('div');
+        elem.appendChild(rowElem);
+        renderRow(rowElem, row, apiClient);
+    }
 }

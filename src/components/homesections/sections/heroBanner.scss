@@ -1,19 +1,19 @@
-// Apple TV style featured banner at the top of the home screen.
+// Netflix-style featured "billboard" at the top of the home screen.
+// Themes can retune it through --hf-bg (the page colour the art fades into).
 
 $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-$hero-glass: rgba(60, 60, 64, 0.45);
-$hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 
 .homeHero {
     position: relative;
-    height: clamp(30em, 86vh, 56.25vw);
-    margin-bottom: -5.5em;
+    height: min(56.25vw, 92vh);
+    min-height: 28em;
+    margin-bottom: -9vw;
     overflow: hidden;
     isolation: isolate;
     color: #fff;
 }
 
-// Rows that follow tuck up over the fade at the bottom of the banner.
+// Rows that follow tuck up over the faded bottom of the billboard.
 .homeHero ~ .verticalSection,
 .homeHero ~ .homeRecommendations {
     position: relative;
@@ -31,7 +31,7 @@ $hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgb
     position: absolute;
     inset: 0;
     background-size: cover;
-    background-position: center 25%;
+    background-position: center 20%;
     opacity: 0;
     transition: opacity 1s ease;
 }
@@ -46,34 +46,34 @@ $hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgb
     z-index: -1;
     pointer-events: none;
     background:
-        linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.28) 32%, rgba(0, 0, 0, 0) 58%),
-        linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.82) 14%, rgba(0, 0, 0, 0) 46%);
+        linear-gradient(77deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 85%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, var(--hf-bg, #141414) 100%);
 }
 
 .homeHero-content {
     position: absolute;
     left: 0;
-    bottom: 8.5em;
-    width: min(34em, 88%);
+    bottom: 33%;
+    width: min(40%, 40em);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
 }
 
 .homeHero-content.is-entering > * {
-    animation: hf-hero-in 0.8s $hero-ease both;
+    animation: hf-hero-in 0.9s $hero-ease both;
 }
 
-@for $i from 2 through 4 {
+@for $i from 2 through 5 {
     .homeHero-content.is-entering > :nth-child(#{$i}) {
-        animation-delay: #{($i - 1) * 0.06}s;
+        animation-delay: #{($i - 1) * 0.07}s;
     }
 }
 
 @keyframes hf-hero-in {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(12px);
     }
 
     to {
@@ -82,24 +82,43 @@ $hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgb
     }
 }
 
-.homeHero-title {
-    margin: 0 0 0.45em;
-    font-size: clamp(2em, 3.6vw, 3.2em);
+.homeHero-kind {
+    margin-bottom: 0.8vw;
+    font-size: clamp(0.7em, 0.85vw, 1em);
     font-weight: 700;
-    line-height: 1.05;
-    letter-spacing: -0.025em;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.homeHero-kind::before {
+    content: "";
+    display: inline-block;
+    width: 0.25em;
+    height: 1.1em;
+    margin-right: 0.7em;
+    vertical-align: -0.2em;
+    background: var(--hf-brand, #e50914);
+}
+
+.homeHero-title {
+    margin: 0 0 1.2vw;
+    font-size: clamp(2.2em, 4.4vw, 5em);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.45);
     cursor: pointer;
 }
 
 .homeHero-title-logo {
     line-height: 0;
-    margin-bottom: 0.9em;
 }
 
 .homeHero-logo {
     display: block;
-    max-width: min(22em, 70vw);
-    max-height: 7.5em;
+    max-width: min(36vw, 100%);
+    max-height: 13vw;
     width: auto;
     height: auto;
     object-fit: contain;
@@ -110,53 +129,112 @@ $hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgb
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    font-size: 0.88em;
+    gap: 0.2em 0.9em;
+    font-size: clamp(0.85em, 1vw, 1.15em);
     font-weight: 500;
-    color: rgba(235, 235, 245, 0.72);
-}
-
-.homeHero-metaItem {
-    display: inline-flex;
-    align-items: center;
-}
-
-.homeHero-metaItem + .homeHero-metaItem::before {
-    content: "·";
-    margin: 0 0.5em;
-    color: rgba(235, 235, 245, 0.45);
-}
-
-.homeHero-badge {
-    padding: 0 0.4em;
-    border: 1px solid rgba(235, 235, 245, 0.5);
-    border-radius: 0.3em;
-    font-size: 0.82em;
-    font-weight: 600;
-    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .homeHero-score {
     display: inline-flex;
     align-items: center;
-    gap: 0.2em;
+    gap: 0.15em;
+    color: var(--hf-score, #46d369);
+    font-weight: 700;
 
     .material-icons {
-        font-size: 1.05em;
+        font-size: 1.1em;
     }
 }
 
 .homeHero-overview {
-    margin: 0.7em 0 0;
-    font-size: 0.95em;
-    line-height: 1.45;
-    color: rgba(235, 235, 245, 0.78);
+    margin: 1vw 0 0;
+    font-size: clamp(0.95em, 1.25vw, 1.45em);
+    font-weight: 400;
+    line-height: 1.35;
+    color: #fff;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.45);
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-// Side arrows appear when the pointer is over the banner.
+.homeHero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75em;
+    margin-top: 1.6vw;
+}
+
+.homeHero-play.emby-button,
+.homeHero-info.emby-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    margin: 0;
+    padding: 0.55em 1.8em 0.55em 1.35em;
+    border-radius: var(--hf-button-radius, 4px);
+    font-size: clamp(1em, 1.2vw, 1.35em);
+    font-weight: 700;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+
+    .material-icons {
+        font-size: 1.6em;
+    }
+}
+
+.homeHero-play.emby-button {
+    background: #fff;
+    color: #000;
+}
+
+.homeHero-info.emby-button {
+    background: rgba(109, 109, 110, 0.7);
+    color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .homeHero-play.emby-button:hover {
+        background: rgba(255, 255, 255, 0.75);
+    }
+
+    .homeHero-info.emby-button:hover {
+        background: rgba(109, 109, 110, 0.4);
+    }
+}
+
+.homeHero-play.emby-button:active,
+.homeHero-info.emby-button:active {
+    transform: scale(0.97);
+}
+
+.homeHero-play.emby-button.show-focus:focus,
+.homeHero-info.emby-button.show-focus:focus {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
+// Age rating flag on the right edge.
+.homeHero-side {
+    position: absolute;
+    right: 0;
+    bottom: 35%;
+}
+
+.homeHero-ratingFlag {
+    display: block;
+    padding: 0.5vw 3.5vw 0.5vw 0.8vw;
+    border-left: 3px solid #dcdcdc;
+    background: rgba(51, 51, 51, 0.6);
+    font-size: clamp(0.9em, 1.1vw, 1.3em);
+    font-weight: 500;
+    color: #fff;
+}
+
+// Only used when several titles rotate (SLIDE_COUNT > 1).
 .homeHero-arrow {
     position: absolute;
     top: 50%;
@@ -170,47 +248,31 @@ $hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgb
     align-items: center;
     justify-content: center;
     color: #fff;
-    background: $hero-glass;
-    backdrop-filter: saturate(180%) blur(24px);
-    box-shadow: $hero-glass-edge;
+    background: rgba(20, 20, 20, 0.5);
     cursor: pointer;
     opacity: 0;
-    transform: translateY(-50%) scale(0.92);
-    transition: opacity 0.3s ease, transform 0.3s $hero-ease, background-color 0.2s ease;
-
-    .material-icons {
-        font-size: 1.8em;
-    }
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.26);
-    }
+    transform: translateY(-50%);
+    transition: opacity 0.3s ease;
 }
 
 .homeHero-arrow-prev {
-    left: 1.2em;
+    left: 1em;
 }
 
 .homeHero-arrow-next {
-    right: 1.2em;
-}
-
-.homeHero-arrow:focus-visible {
-    opacity: 1;
-    transform: translateY(-50%) scale(1);
+    right: 1em;
 }
 
 .homeHero:hover .homeHero-arrow {
     opacity: 1;
-    transform: translateY(-50%) scale(1);
 }
 
 .homeHero-dots {
     position: absolute;
     left: 50%;
-    bottom: 6.6em;
+    bottom: 12vw;
     display: flex;
-    gap: 0.55em;
+    gap: 0.5em;
     transform: translateX(-50%);
 }
 
@@ -222,87 +284,10 @@ $hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgb
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.35);
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.3s $hero-ease;
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.6);
-    }
 }
 
 .homeHero-dot.is-active {
     background: #fff;
-}
-
-.homeHero-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.7em;
-    margin-top: 1.3em;
-}
-
-.homeHero-play.emby-button,
-.homeHero-round.emby-button {
-    margin: 0;
-    height: 2.9em;
-    border-radius: 999px;
-    transition: transform 0.2s $hero-ease, background-color 0.2s ease, color 0.2s ease;
-
-    .material-icons {
-        font-size: 1.45em;
-    }
-}
-
-.homeHero-play.emby-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3em;
-    min-width: 8.5em;
-    padding: 0 1.6em 0 1.2em;
-    justify-content: center;
-    background: #fff;
-    color: #000;
-    font-size: 1em;
-    font-weight: 600;
-}
-
-.homeHero-round.emby-button {
-    width: 2.9em;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: $hero-glass;
-    color: #fff;
-    backdrop-filter: saturate(180%) blur(24px);
-    box-shadow: $hero-glass-edge;
-}
-
-.homeHero-round.emby-button.is-on {
-    background: rgba(255, 255, 255, 0.28);
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .homeHero-play.emby-button:hover {
-        background: rgba(255, 255, 255, 0.86);
-    }
-
-    .homeHero-round.emby-button:hover {
-        background: rgba(255, 255, 255, 0.26);
-    }
-}
-
-.homeHero-play.emby-button:active,
-.homeHero-round.emby-button:active {
-    transform: scale(0.96);
-}
-
-// Remote / keyboard focus: Apple TV turns the focused control white and lifts it.
-.homeHero-play.emby-button.show-focus:focus,
-.homeHero-round.emby-button.show-focus:focus {
-    transform: scale(1.08);
-    background: #fff;
-    color: #000;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -315,49 +300,52 @@ $hero-glass-edge: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgb
     }
 }
 
-// Touch devices don't get hover, so skip the arrows; swipe isn't needed with dots.
 @media (hover: none) {
     .homeHero-arrow {
         display: none;
     }
 }
 
-// Phones: shorter banner, centred title treatment, synopsis hidden.
+// Phones: taller crop, centred title treatment, no synopsis.
 @media all and (max-width: 50em) {
     .homeHero {
-        height: 72vh;
+        height: 78vh;
         min-height: 26em;
-        margin-bottom: -3em;
+        margin-bottom: -2em;
     }
 
     .homeHero-scrim {
         background:
-            linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0.85) 22%, rgba(0, 0, 0, 0) 60%),
-            linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%);
+            linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%),
+            linear-gradient(0deg, var(--hf-bg, #141414) 0%, rgba(0, 0, 0, 0.6) 30%, rgba(0, 0, 0, 0) 60%);
     }
 
     .homeHero-content {
         width: 100%;
-        bottom: 5em;
+        bottom: 3.5em;
         align-items: center;
         text-align: center;
         box-sizing: border-box;
     }
 
     .homeHero-logo {
+        max-width: 75vw;
+        max-height: 30vw;
         object-position: center bottom;
-        max-height: 5.5em;
     }
 
     .homeHero-meta {
         justify-content: center;
+        margin-top: 0.6em;
     }
 
-    .homeHero-overview {
+    .homeHero-overview,
+    .homeHero-side {
         display: none;
     }
 
-    .homeHero-dots {
-        bottom: 2.6em;
+    .homeHero-actions {
+        justify-content: center;
+        margin-top: 1.1em;
     }
 }

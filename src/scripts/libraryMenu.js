@@ -35,6 +35,7 @@ import '../elements/emby-button/paper-icon-button-light';
 import 'material-design-icons-iconfont';
 import '../styles/scrollstyles.scss';
 import '../styles/flexstyles.scss';
+import '../styles/headerNav.scss';
 
 function renderHeader() {
     let html = '';
@@ -44,6 +45,7 @@ function renderHeader() {
     html += '<button type="button" is="paper-icon-button-light" class="headerButton headerHomeButton hide barsMenuButton headerButtonLeft"><span class="material-icons home" aria-hidden="true"></span></button>';
     html += '<button type="button" is="paper-icon-button-light" class="headerButton mainDrawerButton barsMenuButton headerButtonLeft hide"><span class="material-icons menu" aria-hidden="true"></span></button>';
     html += '<h3 class="pageTitle" aria-hidden="true"></h3>';
+    html += '<nav class="headerNav" aria-label="' + globalize.translate('HeaderMedia') + '"></nav>';
     html += '</div>';
     html += '<div class="headerRight">';
     html += '<button is="paper-icon-button-light" class="headerSyncButton syncButton headerButton headerButtonRight hide"><span class="material-icons groups" aria-hidden="true"></span></button>';
@@ -255,6 +257,7 @@ function bindMenuEvents() {
     if (layoutManager.mobile) {
         initHeadRoom(skinHeader);
     }
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
     Events.on(playbackManager, 'playbackstart', onPlaybackStart);
     Events.on(playbackManager, 'playbackstop', onPlaybackStop);
 }
@@ -481,6 +484,7 @@ function updateLibraryMenu(user) {
                                   </a>`;
             }).join('');
             libraryMenuOptions.innerHTML = html;
+            renderHeaderNav(items);
             const elem = libraryMenuOptions;
             const sidebarLinks = elem.querySelectorAll('.navMenuOption');
 
@@ -490,6 +494,50 @@ function updateLibraryMenu(user) {
             }
         });
     }
+}
+
+/** Library types worth a top-level link in the header (Netflix-style "TV Shows / Movies"). */
+const HEADER_NAV_TYPES = ['movies', 'tvshows', 'mixed', 'music', 'homevideos', 'livetv', 'books', 'boxsets'];
+const HEADER_NAV_MAX_LIBRARIES = 5;
+
+/** Text links in the header: Home, the main libraries, then My List (favourites). Themes decide whether to show it. */
+function renderHeaderNav(views) {
+    const nav = skinHeader?.querySelector('.headerNav');
+    if (!nav) return;
+
+    const libraries = views
+        .filter(view => !view.CollectionType || HEADER_NAV_TYPES.includes(view.CollectionType))
+        .filter((view, i, all) => all.findIndex(other => other.Id === view.Id) === i)
+        .slice(0, HEADER_NAV_MAX_LIBRARIES);
+
+    let html = `<a is="emby-linkbutton" class="headerNavLink" data-nav="home" href="#/home">${escapeHtml(globalize.translate('Home'))}</a>`;
+    html += libraries.map(view => `<a is="emby-linkbutton" class="headerNavLink" data-itemid="${view.Id}" href="${getItemHref(view, view.CollectionType)}">${escapeHtml(view.Name)}</a>`).join('');
+    html += `<a is="emby-linkbutton" class="headerNavLink" data-nav="mylist" href="#/home?tab=1">${escapeHtml(globalize.translate('HeaderMyList'))}</a>`;
+    nav.innerHTML = html;
+
+    const page = document.querySelector('.mainAnimatedPage:not(.hide)');
+    if (page) updateHeaderNavLinks(page);
+}
+
+function updateHeaderNavLinks(page) {
+    const isHome = page.classList.contains('homePage');
+    const onFavourites = isHome && getParameterByName('tab') === '1';
+    const topParentId = getTopParentId();
+
+    const isActive = link => {
+        if (link.dataset.nav === 'home') return isHome && !onFavourites;
+        if (link.dataset.nav === 'mylist') return onFavourites;
+        return !!topParentId && link.dataset.itemid === topParentId;
+    };
+
+    for (const link of skinHeader?.querySelectorAll('.headerNavLink') || []) {
+        link.classList.toggle('headerNavLink-active', isActive(link));
+    }
+}
+
+/** Lets themes switch the header from clear (over artwork) to solid once the page scrolls. */
+function onWindowScroll() {
+    skinHeader?.classList.toggle('skinHeader-scrolled', window.scrollY > 4);
 }
 
 function getTopParentId() {
@@ -822,6 +870,8 @@ pageClassOn('pageshow', 'page', function (e) {
     updateTitle(page);
     updateBackButton(page);
     updateLibraryNavLinks(page);
+    updateHeaderNavLinks(page);
+    onWindowScroll();
 });
 
 Events.on(ServerConnections, 'apiclientcreated', (e, newApiClient) => {

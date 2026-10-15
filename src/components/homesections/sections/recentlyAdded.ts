@@ -84,7 +84,7 @@ function getLatestItemsHtmlFn(
     };
 }
 
-function renderLatestSection(
+export function renderLatestSection(
     elem: HTMLElement,
     apiClient: ApiClient,
     user: UserDto,

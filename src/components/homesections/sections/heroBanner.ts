@@ -7,11 +7,16 @@ import { playbackManager } from 'components/playback/playbackmanager';
 import { appRouter } from 'components/router/appRouter';
 import globalize from 'lib/globalize';
 
+import { formatRuntime } from '../rows/artwork';
+
 import './heroBanner.scss';
 
-/** How long each featured title stays on screen. */
+/** How long each featured title stays on screen (only when more than one is featured). */
 const SLIDE_INTERVAL_MS = 8000;
-const SLIDE_COUNT = 6;
+/** Netflix features a single title per visit; raise this to rotate several. */
+const SLIDE_COUNT = 1;
+/** Candidates fetched so a title with a logo (title treatment) can be preferred. */
+const CANDIDATE_COUNT = 12;
 
 export interface HeroController {
     pause: () => void
@@ -31,38 +36,31 @@ const ITEM_QUERY = {
     EnableImageTypes: 'Backdrop,Logo',
     ImageTypeLimit: 1,
     EnableTotalRecordCount: false,
-    Limit: SLIDE_COUNT
+    Limit: CANDIDATE_COUNT
 };
 
-/** Prefer titles the user hasn't seen yet, topping up with anything else. */
+/** Prefer unwatched titles, and among those ones with a logo, topping up with anything else. */
 async function fetchFeaturedItems(apiClient: ApiClient): Promise<BaseItemDto[]> {
     const userId = apiClient.getCurrentUserId();
     const unplayed = await apiClient.getItems(userId, { ...ITEM_QUERY, IsPlayed: false });
-    const items = unplayed.Items || [];
-    if (items.length >= SLIDE_COUNT) return items;
-
-    const rest = await apiClient.getItems(userId, ITEM_QUERY);
-    const seen = new Set(items.map(item => item.Id));
-    for (const item of rest.Items || []) {
-        if (items.length >= SLIDE_COUNT) break;
-        if (!seen.has(item.Id)) items.push(item);
+    let candidates = unplayed.Items || [];
+    if (candidates.length < SLIDE_COUNT) {
+        const rest = await apiClient.getItems(userId, ITEM_QUERY);
+        const seen = new Set(candidates.map(item => item.Id));
+        candidates = candidates.concat((rest.Items || []).filter(item => !seen.has(item.Id)));
     }
-    return items;
+    const withLogo = candidates.filter(item => item.ImageTags?.Logo);
+    const withoutLogo = candidates.filter(item => !item.ImageTags?.Logo);
+    return [...withLogo, ...withoutLogo].slice(0, SLIDE_COUNT);
 }
 
-function formatRuntime(ticks?: number | null) {
-    if (!ticks) return '';
-    const minutes = Math.round(ticks / 600000000);
-    const hours = Math.floor(minutes / 60);
-    return hours ? `${hours} hr ${minutes % 60} min` : `${minutes} min`;
-}
-
-/** Apple TV style info line: "Drama, Thriller · 2023 · 12A · 2 hr 4 min · ★ 7.8". */
+/** Small info line under the title: "2023 · 2h 4m · Drama, Thriller". */
 function getMetaHtml(item: BaseItemDto) {
     const parts: string[] = [];
-    if (item.Genres?.length) parts.push(escapeHtml(item.Genres.slice(0, 2).join(', ')));
+    if (item.CommunityRating) {
+        parts.push(`<span class="homeHero-score"><span class="material-icons" aria-hidden="true">star</span>${item.CommunityRating.toFixed(1)}</span>`);
+    }
     if (item.ProductionYear) parts.push(String(item.ProductionYear));
-    if (item.OfficialRating) parts.push(`<span class="homeHero-badge">${escapeHtml(item.OfficialRating)}</span>`);
     if (item.Type === 'Series') {
         if (item.ChildCount) {
             parts.push(escapeHtml(globalize.translate(item.ChildCount === 1 ? 'ValueOneSeason' : 'ValueSeasonCount', item.ChildCount)));
@@ -71,9 +69,7 @@ function getMetaHtml(item: BaseItemDto) {
         const runtime = formatRuntime(item.RunTimeTicks);
         if (runtime) parts.push(runtime);
     }
-    if (item.CommunityRating) {
-        parts.push(`<span class="homeHero-score"><span class="material-icons" aria-hidden="true">star</span>${item.CommunityRating.toFixed(1)}</span>`);
-    }
+    if (item.Genres?.length) parts.push(escapeHtml(item.Genres.slice(0, 3).join(', ')));
     return parts.map(part => `<span class="homeHero-metaItem">${part}</span>`).join('');
 }
 
@@ -81,16 +77,12 @@ function getResumeTicks(item: BaseItemDto) {
     return item.Type !== 'Series' ? item.UserData?.PlaybackPositionTicks || 0 : 0;
 }
 
-function getFavouriteButtonHtml(item: BaseItemDto) {
-    const isFavourite = !!item.UserData?.IsFavorite;
-    const label = escapeHtml(globalize.translate(isFavourite ? 'Favorite' : 'AddToFavorites'));
-    return `<button is="emby-button" type="button" class="homeHero-round${isFavourite ? ' is-on' : ''}" data-action="favourite" title="${label}" aria-label="${label}" aria-pressed="${isFavourite}"><span class="material-icons" aria-hidden="true">${isFavourite ? 'check' : 'add'}</span></button>`;
-}
-
 function getSlideContentHtml(item: BaseItemDto, apiClient: ApiClient) {
     const logoTag = item.ImageTags?.Logo;
     const title = escapeHtml(item.Name || '');
     let html = '';
+
+    html += `<div class="homeHero-kind">${escapeHtml(globalize.translate(item.Type === 'Series' ? 'Series' : 'Movie'))}</div>`;
 
     if (logoTag && item.Id) {
         const logoUrl = apiClient.getScaledImageUrl(item.Id, { type: 'Logo', maxWidth: 900, tag: logoTag });
@@ -106,14 +98,17 @@ function getSlideContentHtml(item: BaseItemDto, apiClient: ApiClient) {
     }
 
     const playLabel = globalize.translate(getResumeTicks(item) ? 'ButtonResume' : 'Play');
-    const infoLabel = escapeHtml(globalize.translate('MoreInfo'));
     html += '<div class="homeHero-actions focuscontainer-x">';
     html += `<button is="emby-button" type="button" class="homeHero-play" data-action="play"><span class="material-icons" aria-hidden="true">play_arrow</span><span>${escapeHtml(playLabel)}</span></button>`;
-    html += getFavouriteButtonHtml(item);
-    html += `<button is="emby-button" type="button" class="homeHero-round" data-action="info" title="${infoLabel}" aria-label="${infoLabel}"><span class="material-icons" aria-hidden="true">info_outline</span></button>`;
+    html += `<button is="emby-button" type="button" class="homeHero-info" data-action="info"><span class="material-icons" aria-hidden="true">info_outline</span><span>${escapeHtml(globalize.translate('MoreInfo'))}</span></button>`;
     html += '</div>';
 
     return html;
+}
+
+/** Age rating flag that sits on the right edge of the banner. */
+function getRatingFlagHtml(item: BaseItemDto) {
+    return item.OfficialRating ? `<span class="homeHero-ratingFlag">${escapeHtml(item.OfficialRating)}</span>` : '';
 }
 
 function getBackdropUrl(item: BaseItemDto, apiClient: ApiClient) {
@@ -157,6 +152,7 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
     html += '</div>';
     html += '<div class="homeHero-scrim"></div>';
     html += '<div class="homeHero-content padded-left padded-right"></div>';
+    html += '<div class="homeHero-side"></div>';
     if (multiple) {
         html += `<button type="button" class="homeHero-arrow homeHero-arrow-prev" data-step="-1" aria-label="${escapeHtml(globalize.translate('Previous'))}"><span class="material-icons" aria-hidden="true">chevron_left</span></button>`;
         html += `<button type="button" class="homeHero-arrow homeHero-arrow-next" data-step="1" aria-label="${escapeHtml(globalize.translate('Next'))}"><span class="material-icons" aria-hidden="true">chevron_right</span></button>`;
@@ -192,6 +188,8 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
             content.innerHTML = getSlideContentHtml(items[current], apiClient);
             restartAnimation(content, 'is-entering');
         }
+        const side = elem.querySelector<HTMLElement>('.homeHero-side');
+        if (side) side.innerHTML = getRatingFlagHtml(items[current]);
     };
 
     const stop = () => {
@@ -227,17 +225,6 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
         }
     };
 
-    const toggleFavourite = async (item: BaseItemDto, button: HTMLElement) => {
-        if (!item.Id) return;
-        const next = !item.UserData?.IsFavorite;
-        const userData = await apiClient.updateFavoriteStatus(apiClient.getCurrentUserId(), item.Id, next);
-        item.UserData = { ...item.UserData, ...userData, IsFavorite: next };
-        const icon = button.querySelector('.material-icons');
-        if (icon) icon.textContent = next ? 'check' : 'add';
-        button.classList.toggle('is-on', next);
-        button.setAttribute('aria-pressed', String(next));
-    };
-
     elem.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
 
@@ -263,10 +250,6 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
                     items: [item],
                     startPositionTicks: getResumeTicks(item)
                 }).catch((err: unknown) => console.error('[HomeHero] playback failed', err));
-                break;
-            case 'favourite':
-                toggleFavourite(item, actionButton)
-                    .catch((err: unknown) => console.error('[HomeHero] could not update favourite', err));
                 break;
             case 'info':
                 appRouter.showItem(item);

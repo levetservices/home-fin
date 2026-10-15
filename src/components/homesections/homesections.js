@@ -6,13 +6,13 @@ import Dashboard from 'utils/dashboard';
 import { toApi } from 'utils/jellyfin-apiclient/compat';
 import { queryClient } from 'utils/query/queryClient';
 
+import { closeHoverPreview } from './rows/hoverPreview';
+import { loadContinueWatchingRow, loadLatestRows, loadNextUpRow, refreshRows } from './rows/homeRows';
 import { loadRecordings } from './sections/activeRecordings';
 import { loadLibraryButtons } from './sections/libraryButtons';
 import { loadHeroBanner } from './sections/heroBanner';
 import { loadLibraryTiles } from './sections/libraryTiles';
 import { loadLiveTV } from './sections/liveTv';
-import { loadNextUp } from './sections/nextUp';
-import { loadRecentlyAdded } from './sections/recentlyAdded';
 import { loadRecommendations } from './sections/recommendations';
 import { loadResume } from './sections/resume';
 
@@ -99,7 +99,7 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 elem.classList.add('homeSectionsContainer');
 
                 loadHeroBanner(elem.querySelector('.homeHero'), apiClient);
-                loadRecommendations(elem.querySelector('.homeRecommendations'), apiClient, { enableOverflow: enableScrollX() })
+                loadRecommendations(elem.querySelector('.homeRecommendations'), apiClient)
                     .catch(err => console.error('[HomeRecommendations] failed to load', err));
 
                 const promises = [];
@@ -111,7 +111,7 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 // Timeout for polyfilled CustomElements (webOS 1.2)
                     .then(() => new Promise((resolve) => setTimeout(resolve, 0)))
                     .then(() => {
-                        return resume(elem, {
+                        return resumeItemsContainers(elem, {
                             refresh: true
                         });
                     });
@@ -140,6 +140,7 @@ export function loadSections(elem, apiClient, user, userSettings) {
 }
 
 export function destroySections(elem) {
+    closeHoverPreview();
     elem.querySelector('.homeHero')?.heroController?.destroy();
 
     const elems = elem.querySelectorAll('.itemsContainer');
@@ -153,6 +154,7 @@ export function destroySections(elem) {
 }
 
 export function pause(elem) {
+    closeHoverPreview();
     elem.querySelector('.homeHero')?.heroController?.pause();
 
     const elems = elem.querySelectorAll('.itemsContainer');
@@ -164,6 +166,13 @@ export function pause(elem) {
 export function resume(elem, options) {
     elem.querySelector('.homeHero')?.heroController?.resume();
 
+    return Promise.all([
+        refreshRows(elem),
+        resumeItemsContainers(elem, options)
+    ]);
+}
+
+function resumeItemsContainers(elem, options) {
     const elems = elem.querySelectorAll('.itemsContainer');
     const promises = [];
 
@@ -186,18 +195,16 @@ function loadSection(page, apiClient, user, userSettings, userViews, allSections
             loadRecordings(elem, true, apiClient, options);
             break;
         case HomeSectionType.LatestMedia:
-            loadRecentlyAdded(elem, apiClient, user, userViews, options);
-            break;
+            return loadLatestRows(elem, apiClient, user, userViews, options);
         case HomeSectionType.LibraryButtons:
             loadLibraryButtons(elem, userViews);
             break;
         case HomeSectionType.LiveTv:
             return loadLiveTV(elem, apiClient, user, options);
         case HomeSectionType.NextUp:
-            loadNextUp(elem, apiClient, userSettings, options);
-            break;
+            return loadNextUpRow(elem, apiClient, userSettings);
         case HomeSectionType.Resume:
-            return loadResume(elem, apiClient, 'HeaderContinueWatching', 'Video', userSettings, options);
+            return loadContinueWatchingRow(elem, apiClient, user, userSettings);
         case HomeSectionType.ResumeAudio:
             return loadResume(elem, apiClient, 'HeaderContinueListening', 'Audio', userSettings, options);
         case HomeSectionType.ResumeBook:

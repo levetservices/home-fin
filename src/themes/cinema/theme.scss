@@ -1,0 +1,477 @@
+/*
+ * Home Fin "Cinema" theme — modelled on Netflix.
+ *
+ * #141414 canvas, a red wordmark and red accents, a top nav of text links
+ * that sits clear over the billboard and turns solid on scroll, tight
+ * 4px-radius cards, and grey-on-dark controls.
+ *
+ * Layered on top of the stock Dark theme so anything not restyled here still
+ * looks right and upstream fixes to Dark keep flowing through on merge.
+ */
+@use '../dark/theme';
+
+:root {
+    --hf-bg: #141414;
+    --hf-surface: #181818;
+    --hf-surface-raised: #2f2f2f;
+    --hf-text: #e5e5e5;
+    --hf-text-secondary: #a3a3a3;
+    --hf-brand: #e50914;
+    --hf-brand-hover: #f40612;
+    --hf-progress: #e50914;
+    --hf-score: #46d369;
+    --hf-explore: #54b9c5;
+    --hf-card-radius: 4px;
+    --hf-button-radius: 4px;
+    --hf-row-title: #e5e5e5;
+    --hf-preview-bg: #181818;
+    --hf-wordmark: "HOMEFIN";
+    --hf-font: "Netflix Sans", "Helvetica Neue", helvetica, "Segoe UI", roboto, "Noto Sans", "Noto Sans HK", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC", "Noto Sans TC", arial, sans-serif;
+}
+
+/* ── Canvas & type ────────────────────────────────────────────────────── */
+
+html,
+html[lang] {
+    font-family: var(--hf-font);
+    color: var(--hf-text);
+}
+
+html,
+.backgroundContainer,
+.dialog,
+.nowPlayingPlaylist,
+.nowPlayingContextMenu {
+    background-color: var(--hf-bg);
+}
+
+.backgroundContainer.withBackdrop {
+    background-color: rgba(20, 20, 20, 0.9);
+}
+
+* {
+    scrollbar-color: #4d4d4d var(--hf-bg);
+}
+
+::selection {
+    background: rgba(229, 9, 20, 0.45);
+}
+
+h1,
+h2,
+h3 {
+    font-weight: 700;
+}
+
+.sectionTitle,
+.sectionTitle-cards {
+    font-size: clamp(1.05em, 1.35vw, 1.6em);
+    font-weight: 700;
+    color: var(--hf-row-title);
+}
+
+.secondaryText,
+.fieldDescription {
+    color: var(--hf-text-secondary);
+}
+
+a,
+.button-link {
+    color: #fff;
+}
+
+/* ── Header: wordmark + text links, clear over artwork, solid on scroll ─ */
+
+.skinHeader,
+.skinHeader-withBackground,
+.skinHeader.semiTransparent {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 10%, rgba(0, 0, 0, 0) 100%);
+    backdrop-filter: none;
+    box-shadow: none;
+    transition: background-color 0.4s ease;
+}
+
+.skinHeader.skinHeader-scrolled {
+    background-color: var(--hf-bg);
+}
+
+.headerTop {
+    padding: 0.55em 1.4%;
+}
+
+.headerButton {
+    color: #fff;
+}
+
+.headerButton .material-icons {
+    font-size: 1.45em;
+}
+
+.headerUserButtonRound,
+.headerUserButtonRound img {
+    border-radius: 4px;
+}
+
+/* The red wordmark in place of the Jellyfin logo. */
+.pageTitleWithDefaultLogo {
+    width: auto;
+    height: auto;
+    margin-left: 0.5em;
+    background-image: none !important;
+}
+
+.pageTitleWithDefaultLogo::before {
+    content: var(--hf-wordmark);
+    display: block;
+    font-family: "Arial Black", "Helvetica Neue", helvetica, arial, sans-serif;
+    font-size: 1.55em;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.045em;
+    color: var(--hf-brand);
+    transform: scaleY(1.18);
+}
+
+.headerNavLink {
+    margin-left: 1.35em;
+    font-size: 0.92em;
+    font-weight: 400;
+    color: var(--hf-text);
+    transition: color 0.4s ease;
+}
+
+.headerNavLink:hover {
+    color: #b3b3b3;
+}
+
+.headerNavLink.headerNavLink-active {
+    font-weight: 700;
+    color: #fff;
+}
+
+@media all and (min-width: 64em) {
+    .headerNav {
+        display: flex;
+        margin-left: 1.6em;
+    }
+
+    /* The nav already offers Home / My List, so hide Home's own tabs. */
+    body:has(.homePage:not(.hide)) .skinHeader .headerTabs {
+        display: none;
+    }
+}
+
+/* Library page tabs: plain text, the current one bold and white. */
+.headerTabs .emby-tabs-slider {
+    margin: 0.2em 0;
+}
+
+.emby-tab-button {
+    padding: 0.7em 1em;
+    font-weight: 400;
+    color: var(--hf-text-secondary);
+    transition: color 0.3s ease;
+}
+
+.emby-tab-button:hover {
+    color: #fff;
+}
+
+.emby-tab-button-active,
+.emby-tab-button-active.show-focus {
+    color: #fff;
+    font-weight: 700;
+}
+
+.emby-tab-button.show-focus:focus {
+    transform: none !important;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* ── Side menu ────────────────────────────────────────────────────────── */
+
+.mainDrawer,
+.drawer-open {
+    background-color: rgba(10, 10, 10, 0.97);
+}
+
+.navMenuOption {
+    border-left: 3px solid transparent;
+    font-weight: 400;
+    color: #b3b3b3;
+}
+
+.navMenuOption:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+
+.navMenuOption-selected {
+    border-left-color: var(--hf-brand);
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff;
+    font-weight: 700;
+}
+
+.navMenuOption-selected .navMenuOptionIcon {
+    color: #fff;
+}
+
+.sidebarHeader {
+    color: #737373;
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* ── Stock Jellyfin cards (library pages, other rows) ─────────────────── */
+
+.cardImageContainer,
+.cardContent,
+.blurhash-canvas,
+.cardBox:not(.visualCardBox) .cardPadder,
+.cardOverlayContainer,
+.cardScalable {
+    border-radius: var(--hf-card-radius);
+}
+
+.cardBox:not(.visualCardBox) .cardPadder {
+    background-color: #2a2a2a;
+}
+
+.cardScalable {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .card:hover .cardScalable {
+        transform: scale(1.05);
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
+        z-index: 2;
+    }
+}
+
+.cardBox > .cardText,
+.cardFooter .cardText,
+.cardBox > .cardTextCentered,
+.cardFooter .cardTextCentered {
+    text-align: start !important; /* card.scss centres with !important */
+}
+
+.cardBox > .cardText-first,
+.cardFooter .cardText-first {
+    padding-top: 0.45em;
+    font-size: 0.9em;
+    color: var(--hf-text);
+}
+
+.cardBox > .cardText-secondary,
+.cardFooter .cardText-secondary {
+    font-size: 0.8em;
+    color: #808080;
+}
+
+.visualCardBox {
+    background: var(--hf-surface);
+    border-radius: var(--hf-card-radius);
+}
+
+.itemProgressBar {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.itemProgressBarForeground {
+    background-color: var(--hf-progress);
+}
+
+.innerCardFooter {
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+}
+
+.playedIndicator,
+.countIndicator {
+    background: var(--hf-brand);
+}
+
+.defaultCardBackground1,
+.defaultCardBackground2,
+.defaultCardBackground3,
+.defaultCardBackground4,
+.defaultCardBackground5 {
+    background: linear-gradient(160deg, #303030, #1c1c1c);
+}
+
+.cardImageIcon {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+
+.emby-button.raised,
+.raised,
+.button-submit,
+.button-cancel,
+.fab {
+    border-radius: var(--hf-button-radius);
+}
+
+.raised {
+    background: rgba(109, 109, 110, 0.7);
+    color: #fff;
+}
+
+.raised:focus,
+.raised:hover {
+    background: rgba(109, 109, 110, 0.4);
+}
+
+/* Primary action: Netflix red. */
+.button-submit {
+    background: var(--hf-brand);
+    color: #fff;
+    font-weight: 700;
+}
+
+.button-submit:focus,
+.button-submit:hover {
+    background: var(--hf-brand-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .paper-icon-button-light:hover:not(:disabled) {
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+}
+
+.paper-icon-button-light:active:not(:disabled),
+.paper-icon-button-light.show-focus:focus {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Forms ────────────────────────────────────────────────────────────── */
+
+.emby-input,
+.emby-textarea,
+.emby-select-withcolor {
+    background: #333;
+    border: 1px solid #333;
+    border-radius: 4px;
+}
+
+.emby-input:focus,
+.emby-textarea:focus,
+.emby-select-withcolor:focus {
+    border-color: #fff;
+    background: #454545;
+}
+
+.emby-checkbox:checked + span + .checkboxOutline,
+.emby-radio:checked + .radioButtonLabel .radioButtonOutline {
+    border-color: var(--hf-brand);
+    background-color: var(--hf-brand);
+}
+
+.emby-collapsible-button {
+    border-color: #333;
+}
+
+/* ── Dialogs and menus ────────────────────────────────────────────────── */
+
+.dialog,
+.actionSheet,
+.formDialog,
+.nowPlayingContextMenu {
+    background-color: var(--hf-surface);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.dialog:not(.dialog-fullscreen) {
+    border-radius: 6px;
+}
+
+.formDialogHeader,
+.formDialogFooter {
+    background: var(--hf-surface) !important;
+}
+
+.toast {
+    background: #fff;
+    color: #141414;
+    border-radius: 4px;
+}
+
+/* ── Item detail page ─────────────────────────────────────────────────── */
+
+.detailPagePrimaryContainer,
+.detailPageSecondaryContainer,
+.noBackdropTransparency .detailPagePrimaryContainer,
+.noBackdropTransparency .detailPageSecondaryContainer {
+    background: transparent;
+}
+
+.detailRibbon,
+.layout-desktop .detailRibbon {
+    background: transparent;
+}
+
+.itemBackdrop::after {
+    background: linear-gradient(180deg, rgba(20, 20, 20, 0) 35%, rgba(20, 20, 20, 0.9) 100%);
+}
+
+.mainDetailButtons .detailButton {
+    margin-right: 0.55em;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    background: rgba(42, 42, 42, 0.6);
+}
+
+.mainDetailButtons .detailButton:hover {
+    border-color: #fff;
+}
+
+.mainDetailButtons .btnPlay {
+    border-color: #fff;
+    background: #fff;
+    color: #000;
+}
+
+.mainDetailButtons .btnPlay:hover {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.playstatebutton-icon-played,
+.ratingbutton-icon-withrating {
+    color: #fff;
+}
+
+/* ── Player ───────────────────────────────────────────────────────────── */
+
+.mdl-slider-background-lower,
+.sliderBubble {
+    background: var(--hf-brand);
+}
+
+.mdl-slider::-webkit-slider-thumb {
+    background: var(--hf-brand);
+}
+
+.mdl-spinner__layer {
+    border-color: var(--hf-brand) !important;
+}
+
+.nowPlayingBar {
+    background: var(--hf-surface);
+    box-shadow: 0 -1px 0 #2a2a2a;
+}
+
+/* ── Experimental (MUI) layout ────────────────────────────────────────── */
+
+.MuiAppBar-root {
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0)) !important;
+    box-shadow: none !important;
+}

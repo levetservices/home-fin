@@ -8,6 +8,7 @@ declare module '@mui/material/styles' {
     interface ColorSchemeOverrides {
         appletv: true;
         blueradiance: true;
+        cinema: true;
         glass: true;
         purplehaze: true;
         wmc: true;
@@ -61,6 +62,25 @@ const blueradiance = buildCustomColorScheme({
         },
         AppBar: {
             defaultBg: '#011432'
+        }
+    }
+});
+
+/** The Home Fin "Cinema" color scheme: Netflix-style charcoal with red accents. */
+const cinema = buildCustomColorScheme({
+    palette: {
+        primary: {
+            main: '#e50914'
+        },
+        secondary: {
+            main: '#54b9c5'
+        },
+        background: {
+            default: '#141414',
+            paper: '#181818'
+        },
+        AppBar: {
+            defaultBg: '#141414'
         }
     }
 });
@@ -135,6 +155,7 @@ const wmc = buildCustomColorScheme({
 export const COLOR_SCHEMES = {
     appletv,
     blueradiance,
+    cinema,
     dark: DEFAULT_COLOR_SCHEME,
     glass,
     light,
