@@ -8,6 +8,7 @@ declare module '@mui/material/styles' {
     interface ColorSchemeOverrides {
         appletv: true;
         blueradiance: true;
+        glass: true;
         purplehaze: true;
         wmc: true;
     }
@@ -64,6 +65,25 @@ const blueradiance = buildCustomColorScheme({
     }
 });
 
+/** The Home Fin "Glass" color scheme: iOS-style dark glass with Apple system blue. */
+const glass = buildCustomColorScheme({
+    palette: {
+        primary: {
+            main: '#0a84ff'
+        },
+        secondary: {
+            main: '#bf5af2'
+        },
+        background: {
+            default: '#050507',
+            paper: '#1c1c1f'
+        },
+        AppBar: {
+            defaultBg: 'rgba(36, 36, 40, 0.7)'
+        }
+    }
+});
+
 /** The "Light" color scheme. */
 const light = merge({}, DEFAULT_COLOR_SCHEME, {
     palette: {
@@ -116,6 +136,7 @@ export const COLOR_SCHEMES = {
     appletv,
     blueradiance,
     dark: DEFAULT_COLOR_SCHEME,
+    glass,
     light,
     purplehaze,
     wmc

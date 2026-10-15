@@ -8,10 +8,12 @@ import { queryClient } from 'utils/query/queryClient';
 
 import { loadRecordings } from './sections/activeRecordings';
 import { loadLibraryButtons } from './sections/libraryButtons';
+import { loadHeroBanner } from './sections/heroBanner';
 import { loadLibraryTiles } from './sections/libraryTiles';
 import { loadLiveTV } from './sections/liveTv';
 import { loadNextUp } from './sections/nextUp';
 import { loadRecentlyAdded } from './sections/recentlyAdded';
+import { loadRecommendations } from './sections/recommendations';
 import { loadResume } from './sections/resume';
 
 import 'elements/emby-button/paper-icon-button-light';
@@ -52,6 +54,21 @@ function getAllSectionsToShow(userSettings, sectionCount) {
     return sections;
 }
 
+/**
+ * The personalised rows go straight after "Continue Watching" / "Next Up",
+ * or ahead of "Recently Added" when neither is shown.
+ */
+function getRecommendationsIndex(sections) {
+    let anchor = -1;
+    sections.forEach((section, i) => {
+        if (section === HomeSectionType.Resume || section === HomeSectionType.NextUp) anchor = i;
+    });
+    if (anchor !== -1) return anchor + 1;
+
+    const latest = sections.indexOf(HomeSectionType.LatestMedia);
+    return latest !== -1 ? latest : sections.length;
+}
+
 export function loadSections(elem, apiClient, user, userSettings) {
     const userId = user.Id || apiClient.getCurrentUserId();
     return queryClient
@@ -64,15 +81,28 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 const userSectionCount = 10;
                 // TV layout can have an extra section to ensure libraries are visible
                 const totalSectionCount = layoutManager.tv ? userSectionCount + 1 : userSectionCount;
+                const sections = getAllSectionsToShow(userSettings, userSectionCount);
+                const recommendationsIndex = getRecommendationsIndex(sections);
+
+                html += '<div class="homeHero hide"></div>';
                 for (let i = 0; i < totalSectionCount; i++) {
+                    if (i === recommendationsIndex) {
+                        html += '<div class="homeRecommendations"></div>';
+                    }
                     html += '<div class="verticalSection section' + i + '"></div>';
+                }
+                if (recommendationsIndex >= totalSectionCount) {
+                    html += '<div class="homeRecommendations"></div>';
                 }
 
                 elem.innerHTML = html;
                 elem.classList.add('homeSectionsContainer');
 
+                loadHeroBanner(elem.querySelector('.homeHero'), apiClient);
+                loadRecommendations(elem.querySelector('.homeRecommendations'), apiClient, { enableOverflow: enableScrollX() })
+                    .catch(err => console.error('[HomeRecommendations] failed to load', err));
+
                 const promises = [];
-                const sections = getAllSectionsToShow(userSettings, userSectionCount);
                 for (let i = 0; i < sections.length; i++) {
                     promises.push(loadSection(elem, apiClient, user, userSettings, userViews, sections, i));
                 }
@@ -110,6 +140,8 @@ export function loadSections(elem, apiClient, user, userSettings) {
 }
 
 export function destroySections(elem) {
+    elem.querySelector('.homeHero')?.heroController?.destroy();
+
     const elems = elem.querySelectorAll('.itemsContainer');
     for (const e of elems) {
         e.fetchData = null;
@@ -121,6 +153,8 @@ export function destroySections(elem) {
 }
 
 export function pause(elem) {
+    elem.querySelector('.homeHero')?.heroController?.pause();
+
     const elems = elem.querySelectorAll('.itemsContainer');
     for (const e of elems) {
         e.pause();
@@ -128,6 +162,8 @@ export function pause(elem) {
 }
 
 export function resume(elem, options) {
+    elem.querySelector('.homeHero')?.heroController?.resume();
+
     const elems = elem.querySelectorAll('.itemsContainer');
     const promises = [];
 

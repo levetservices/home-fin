@@ -1,0 +1,391 @@
+/*
+ * Home Fin "Glass" theme.
+ *
+ * An iOS / visionOS inspired skin: frosted translucent chrome, rounded cards,
+ * pill buttons and Apple system blue. It is layered on top of the stock Dark
+ * theme so that anything not restyled here still looks right, and so that
+ * upstream fixes to the Dark theme keep flowing through on merge.
+ */
+@use '../dark/theme';
+
+:root {
+    --hf-accent: #0a84ff;
+    --hf-accent-soft: rgba(10, 132, 255, 0.22);
+    --hf-bg: #050507;
+    --hf-text: rgba(255, 255, 255, 0.92);
+    --hf-text-secondary: rgba(235, 235, 245, 0.6);
+    --hf-glass: rgba(36, 36, 40, 0.55);
+    --hf-glass-strong: rgba(28, 28, 32, 0.82);
+    --hf-glass-fill: rgba(255, 255, 255, 0.08);
+    --hf-glass-fill-hover: rgba(255, 255, 255, 0.14);
+    --hf-glass-border: rgba(255, 255, 255, 0.1);
+    --hf-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --hf-blur: saturate(180%) blur(28px);
+    --hf-radius-sm: 10px;
+    --hf-radius: 14px;
+    --hf-radius-lg: 22px;
+    --hf-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --hf-font: -apple-system, blinkmacsystemfont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable", "Segoe UI", "Noto Sans", "Noto Sans HK", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC", "Noto Sans TC", sans-serif;
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+
+html,
+html[lang] {
+    font-family: var(--hf-font);
+    color: var(--hf-text);
+    letter-spacing: -0.005em;
+}
+
+html,
+.backgroundContainer,
+.dialog,
+.nowPlayingPlaylist,
+.nowPlayingContextMenu {
+    background-color: var(--hf-bg);
+}
+
+.backgroundContainer:not(.withBackdrop) {
+    background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(10, 132, 255, 0.12), transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, rgba(191, 90, 242, 0.1), transparent 60%),
+        var(--hf-bg);
+}
+
+.backgroundContainer.withBackdrop {
+    background-color: rgba(5, 5, 7, 0.82);
+}
+
+* {
+    scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+::selection {
+    background: var(--hf-accent-soft);
+}
+
+h1,
+h2,
+h3,
+.sectionTitle {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.sectionTitle-cards {
+    font-size: 1.35em;
+}
+
+.secondaryText,
+.cardText-secondary,
+.fieldDescription {
+    color: var(--hf-text-secondary);
+}
+
+a,
+.button-link {
+    color: var(--hf-accent);
+}
+
+/* ── Header: translucent nav bar ──────────────────────────────────────── */
+
+.skinHeader-withBackground,
+.skinHeader.semiTransparent {
+    background-color: var(--hf-glass);
+    backdrop-filter: var(--hf-blur);
+    box-shadow: 0 1px 0 var(--hf-glass-border);
+}
+
+/* Over the home banner the bar starts clear and frosts once you scroll. */
+.skinHeader.hf-overHero:not(.hf-scrolled) {
+    background-color: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
+    background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent);
+}
+
+.skinHeader {
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+.headerButton {
+    border-radius: 999px;
+}
+
+/* Tabs become an iOS segmented control */
+.headerTabs .emby-tabs-slider,
+.libraryPage .emby-tabs-slider {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    margin: 0.35em 0;
+    border-radius: 999px;
+    background: var(--hf-glass-fill);
+    box-shadow: var(--hf-glass-highlight);
+}
+
+.emby-tab-button {
+    padding: 0.55em 1.2em;
+    border-radius: 999px;
+    color: var(--hf-text-secondary);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.emby-tab-button:hover {
+    color: var(--hf-text);
+}
+
+.emby-tab-button-active,
+.emby-tab-button-active.show-focus {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), var(--hf-glass-highlight);
+}
+
+.emby-tab-button.show-focus:focus {
+    transform: none !important;
+    background: var(--hf-glass-fill-hover) !important;
+}
+
+/* ── Side drawer ──────────────────────────────────────────────────────── */
+
+.mainDrawer {
+    background-color: var(--hf-glass-strong);
+    backdrop-filter: var(--hf-blur);
+    border-right: 1px solid var(--hf-glass-border);
+}
+
+.navMenuOption {
+    margin: 2px 0.6em;
+    border-radius: var(--hf-radius-sm);
+    transition: background-color 0.15s ease;
+}
+
+.navMenuOption:hover {
+    background: var(--hf-glass-fill);
+}
+
+.navMenuOption-selected {
+    background: var(--hf-accent-soft) !important;
+    color: #fff;
+}
+
+.navMenuOption-selected .navMenuOptionIcon {
+    color: var(--hf-accent);
+}
+
+.sidebarHeader {
+    color: var(--hf-text-secondary);
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+
+.cardImageContainer,
+.cardContent,
+.blurhash-canvas,
+.cardBox:not(.visualCardBox) .cardPadder,
+.cardOverlayContainer {
+    border-radius: var(--hf-radius);
+}
+
+.cardBox:not(.visualCardBox) .cardPadder {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.cardScalable {
+    border-radius: var(--hf-radius);
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .card:hover .cardScalable {
+        transform: scale(1.04);
+        box-shadow: var(--hf-shadow);
+        z-index: 2;
+    }
+}
+
+.visualCardBox {
+    background: var(--hf-glass-fill);
+    border-radius: var(--hf-radius);
+    box-shadow: var(--hf-glass-highlight);
+}
+
+.cardText {
+    letter-spacing: -0.01em;
+}
+
+.cardOverlayButton-hover,
+.cardOverlayButtonIcon {
+    background: rgba(30, 30, 34, 0.55) !important;
+    backdrop-filter: blur(12px);
+}
+
+.itemProgressBarForeground {
+    background-color: #fff;
+}
+
+.itemProgressBar {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.playedIndicator,
+.countIndicator {
+    background: var(--hf-accent);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+
+.emby-button.raised,
+.raised,
+.button-submit,
+.button-cancel,
+.fab {
+    border-radius: 999px;
+}
+
+.raised {
+    background: var(--hf-glass-fill);
+    color: var(--hf-text);
+    box-shadow: var(--hf-glass-highlight);
+}
+
+.raised:focus,
+.raised:hover {
+    background: var(--hf-glass-fill-hover);
+}
+
+.button-submit {
+    background: var(--hf-accent);
+    color: #fff;
+}
+
+.button-submit:focus,
+.button-submit:hover {
+    background: #3b9bff;
+}
+
+.detailButton,
+.emby-button.detailButton {
+    border-radius: 999px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .paper-icon-button-light:hover:not(:disabled) {
+        color: #fff;
+        background-color: var(--hf-glass-fill-hover);
+    }
+}
+
+.paper-icon-button-light:active:not(:disabled),
+.paper-icon-button-light.show-focus:focus {
+    color: #fff;
+    background-color: var(--hf-glass-fill-hover);
+}
+
+/* ── Forms ────────────────────────────────────────────────────────────── */
+
+.emby-input,
+.emby-textarea,
+.emby-select-withcolor {
+    background: var(--hf-glass-fill);
+    border: 1px solid transparent;
+    border-radius: var(--hf-radius-sm);
+}
+
+.emby-input:focus,
+.emby-textarea:focus,
+.emby-select-withcolor:focus {
+    border-color: var(--hf-accent);
+    box-shadow: 0 0 0 3px var(--hf-accent-soft);
+}
+
+.emby-checkbox:checked + span + .checkboxOutline,
+.emby-radio:checked + .radioButtonLabel .radioButtonOutline {
+    border-color: var(--hf-accent);
+    background-color: var(--hf-accent);
+}
+
+.emby-collapsible-button {
+    border-color: var(--hf-glass-border);
+}
+
+/* ── Dialogs, sheets and menus ────────────────────────────────────────── */
+
+.dialog,
+.actionSheet,
+.formDialog,
+.nowPlayingContextMenu {
+    background-color: var(--hf-glass-strong);
+    backdrop-filter: var(--hf-blur);
+    border: 1px solid var(--hf-glass-border);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), var(--hf-glass-highlight);
+}
+
+.dialog:not(.dialog-fullscreen) {
+    border-radius: var(--hf-radius-lg);
+}
+
+.formDialogHeader,
+.formDialogFooter {
+    background: transparent !important;
+}
+
+.listItem,
+.actionSheetMenuItem {
+    border-radius: var(--hf-radius-sm);
+}
+
+.toast {
+    background: var(--hf-glass-strong);
+    backdrop-filter: var(--hf-blur);
+    border-radius: 999px;
+    border: 1px solid var(--hf-glass-border);
+}
+
+/* ── Item detail page ─────────────────────────────────────────────────── */
+
+.detailPagePrimaryContainer,
+.detailPageSecondaryContainer {
+    background: transparent;
+}
+
+.detailRibbon {
+    background: linear-gradient(180deg, rgba(5, 5, 7, 0) 0%, rgba(5, 5, 7, 0.85) 100%);
+}
+
+.layout-desktop .detailRibbon {
+    background-color: transparent;
+}
+
+.itemBackdrop::after {
+    background: linear-gradient(180deg, rgba(5, 5, 7, 0) 40%, var(--hf-bg) 100%);
+}
+
+/* ── Player ───────────────────────────────────────────────────────────── */
+
+.videoOsdBottom .osdControls {
+    background: var(--hf-glass);
+    backdrop-filter: var(--hf-blur);
+    border: 1px solid var(--hf-glass-border);
+    border-radius: var(--hf-radius-lg);
+    margin: 0 1em 1em;
+    padding: 0.6em 1em;
+}
+
+.nowPlayingBar {
+    background: var(--hf-glass-strong);
+    backdrop-filter: var(--hf-blur);
+    border-top: 1px solid var(--hf-glass-border);
+}
+
+.mdl-slider-background-lower,
+.sliderBubble {
+    background: #fff;
+}

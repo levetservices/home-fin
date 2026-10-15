@@ -1,0 +1,319 @@
+// Netflix-style featured banner at the top of the home screen.
+
+.homeHero {
+    position: relative;
+    height: clamp(26em, 78vh, 56.25vw);
+    min-height: 26em;
+    margin-bottom: -4em;
+    overflow: hidden;
+    isolation: isolate;
+    color: #fff;
+}
+
+// Rows that follow sit over the bottom of the banner, as on Netflix.
+.homeHero ~ .verticalSection,
+.homeHero ~ .homeRecommendations {
+    position: relative;
+    z-index: 1;
+}
+
+.homeHero-slides {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    cursor: pointer;
+}
+
+.homeHero-slide {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center 20%;
+    opacity: 0;
+    transform: scale(1.06);
+    transition: opacity 1.2s ease, transform 10s linear;
+}
+
+.homeHero-slide.is-active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.homeHero-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(5, 5, 7, 0.88) 0%, rgba(5, 5, 7, 0.55) 35%, rgba(5, 5, 7, 0) 65%),
+        linear-gradient(0deg, var(--hf-bg, #101010) 0%, rgba(5, 5, 7, 0.6) 18%, rgba(5, 5, 7, 0) 45%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%);
+}
+
+.homeHero-content {
+    position: absolute;
+    left: 0;
+    bottom: 7.5em;
+    width: min(38em, 90%);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.9em;
+}
+
+.homeHero-content.is-entering > * {
+    animation: hf-hero-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.homeHero-content.is-entering > :nth-child(2) { animation-delay: 0.05s; }
+.homeHero-content.is-entering > :nth-child(3) { animation-delay: 0.1s; }
+.homeHero-content.is-entering > :nth-child(4) { animation-delay: 0.15s; }
+.homeHero-content.is-entering > :nth-child(5) { animation-delay: 0.2s; }
+
+@keyframes hf-hero-in {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.homeHero-eyebrow {
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.homeHero-title {
+    margin: 0;
+    font-size: clamp(2.2em, 4.6vw, 4em);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+}
+
+.homeHero-title-logo {
+    line-height: 0;
+}
+
+.homeHero-logo {
+    display: block;
+    max-width: min(26em, 80vw);
+    max-height: 9em;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    object-position: left bottom;
+    filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.5));
+}
+
+.homeHero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4em 0.9em;
+    font-size: 0.95em;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.homeHero-rating {
+    padding: 0.05em 0.45em;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 0.35em;
+    font-size: 0.85em;
+}
+
+.homeHero-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15em;
+}
+
+.homeHero-star {
+    font-size: 1.1em;
+    color: #ffd60a;
+}
+
+.homeHero-overview {
+    margin: 0;
+    font-size: 1.05em;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.82);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6);
+}
+
+.homeHero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75em;
+    margin-top: 0.4em;
+}
+
+.homeHero-button.emby-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    margin: 0;
+    padding: 0.75em 1.6em 0.75em 1.25em;
+    border-radius: 999px;
+    font-size: 1.02em;
+    font-weight: 700;
+    transition: transform 0.15s ease, background-color 0.2s ease;
+
+    .material-icons {
+        font-size: 1.5em;
+    }
+}
+
+.homeHero-button-play.emby-button {
+    background: #fff;
+    color: #000;
+}
+
+.homeHero-button-info.emby-button {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    backdrop-filter: saturate(180%) blur(20px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .homeHero-button-play.emby-button:hover {
+        background: rgba(255, 255, 255, 0.85);
+    }
+
+    .homeHero-button-info.emby-button:hover {
+        background: rgba(255, 255, 255, 0.28);
+    }
+}
+
+.homeHero-button.emby-button:active {
+    transform: scale(0.97);
+}
+
+.homeHero-button.emby-button.show-focus:focus {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 3px var(--hf-accent, #00a4dc);
+}
+
+// Glass pill holding a progress bar per slide.
+.homeHero-dots {
+    position: absolute;
+    right: 0;
+    bottom: 8em;
+    display: flex;
+    gap: 6px;
+    padding: 7px 10px;
+    margin-right: 1.5em;
+    border-radius: 999px;
+    background: rgba(30, 30, 34, 0.45);
+    backdrop-filter: saturate(180%) blur(20px);
+}
+
+.homeHero-dot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    overflow: hidden;
+    transition: width 0.3s ease;
+
+    span {
+        position: absolute;
+        inset: 0;
+        transform: scaleX(0);
+        transform-origin: left;
+        background: #fff;
+    }
+}
+
+.homeHero-dot.is-active {
+    width: 28px;
+
+    span {
+        animation: hf-hero-progress var(--hf-slide-duration, 9s) linear forwards;
+    }
+}
+
+.homeHero:hover .homeHero-dot.is-active span,
+.homeHero:focus-within .homeHero-dot.is-active span {
+    animation-play-state: paused;
+}
+
+@keyframes hf-hero-progress {
+    to {
+        transform: scaleX(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .homeHero-slide {
+        transition: opacity 0.4s ease;
+        transform: none;
+    }
+
+    .homeHero-content.is-entering > * {
+        animation: none;
+    }
+}
+
+// Phones: shorter banner, content centred, synopsis hidden.
+@media all and (max-width: 50em) {
+    .homeHero {
+        height: 70vh;
+        min-height: 24em;
+        margin-bottom: -2em;
+    }
+
+    .homeHero-scrim {
+        background:
+            linear-gradient(0deg, var(--hf-bg, #101010) 0%, rgba(5, 5, 7, 0.75) 30%, rgba(5, 5, 7, 0) 65%),
+            linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 25%);
+    }
+
+    .homeHero-content {
+        width: 100%;
+        bottom: 4.5em;
+        align-items: center;
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .homeHero-logo {
+        object-position: center bottom;
+        max-height: 6em;
+    }
+
+    .homeHero-meta {
+        justify-content: center;
+    }
+
+    .homeHero-overview {
+        display: none;
+    }
+
+    .homeHero-dots {
+        bottom: 1.6em;
+        left: 50%;
+        right: auto;
+        margin: 0;
+        transform: translateX(-50%);
+    }
+}

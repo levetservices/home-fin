@@ -13,7 +13,11 @@
     }, {
       "name": "Dark",
       "id": "dark",
-      "color": "#202020",
+      "color": "#202020"
+    }, {
+      "name": "Glass",
+      "id": "glass",
+      "color": "#050507",
       "default": true
     }, {
       "name": "Light",
