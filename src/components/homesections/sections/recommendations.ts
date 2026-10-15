@@ -216,7 +216,7 @@ export async function loadRecommendations(elem: HTMLElement, apiClient: ApiClien
     const seen = new Set<string>();
     const visible = rows.filter(row => {
         if (!row.title || row.items.length < MIN_ROW_ITEMS) return false;
-        const key = row.items.slice(0, MIN_ROW_ITEMS * 2).map(item => item.Id).sort().join();
+        const key = row.items.slice(0, MIN_ROW_ITEMS * 2).map(item => item.Id ?? '').sort((a, b) => a.localeCompare(b)).join();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
