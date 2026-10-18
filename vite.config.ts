@@ -8,6 +8,8 @@ export default defineConfig({
             include: [ 'src' ]
         },
         environment: 'jsdom',
+        // homefin/accounts is a separate Node service with its own node:test suite (npm test there).
+        exclude: [ '**/node_modules/**', '**/dist/**', 'homefin/**' ],
         restoreMocks: true
     }
 });

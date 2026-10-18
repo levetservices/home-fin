@@ -79,6 +79,12 @@ No npm packages, just Node 22.5+ (it uses the built-in `node:sqlite`).
   *Existing Jellyfin users* → choose the account it should become a profile of.
   Administrator users are left as normal Jellyfin logins.
 
+## Profile locks
+
+Any profile can have a 4-digit PIN (Manage Profiles → the profile → *Profile
+Lock*). Forgot it? *Forgot PIN?* on the PIN screen asks for the account
+password instead, then lets you change or remove the PIN.
+
 ## TVs and phone apps
 
 Profiles don't have a password you can type into the Jellyfin TV or phone apps.
@@ -109,4 +115,6 @@ npm start     # needs the env above
 ```
 
 The web client's dev server (`npm start` in the repo root) proxies
-`/homefin-api` to `http://127.0.0.1:8097`.
+`/homefin-api` to `http://127.0.0.1:8097` (override with
+`HOMEFIN_ACCOUNTS_URL`). Remember `homefinAccounts.enabled` in `src/config.json`
+is `false` in the repository; switch it on only in your local or deployed copy.
