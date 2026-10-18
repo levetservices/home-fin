@@ -1,4 +1,6 @@
 import layoutManager from 'components/layoutManager';
+import { getDisplayName } from 'homefin/accounts/session';
+import { buildHomePlan } from 'homefin/recs';
 import { getUserViewsQuery } from 'hooks/useUserViews';
 import globalize from 'lib/globalize';
 import { DEFAULT_SECTIONS, HomeSectionType } from 'types/homeSectionType';
@@ -23,9 +25,19 @@ import 'elements/emby-button/emby-button';
 
 import './homesections.scss';
 
+/**
+ * Home Fin's default order: like Netflix, Home opens on the billboard and rows; library
+ * tiles move to the end (the header nav already links every library).
+ */
+const HOMEFIN_DEFAULT_SECTIONS = [
+    ...DEFAULT_SECTIONS.filter(section => section !== HomeSectionType.SmallLibraryTiles && section !== HomeSectionType.None),
+    HomeSectionType.SmallLibraryTiles,
+    HomeSectionType.None
+];
+
 export function getDefaultSection(index) {
-    if (index < 0 || index > DEFAULT_SECTIONS.length) return '';
-    return DEFAULT_SECTIONS[index];
+    if (index < 0 || index > HOMEFIN_DEFAULT_SECTIONS.length) return '';
+    return HOMEFIN_DEFAULT_SECTIONS[index];
 }
 
 function getAllSectionsToShow(userSettings, sectionCount) {
@@ -98,8 +110,10 @@ export function loadSections(elem, apiClient, user, userSettings) {
                 elem.innerHTML = html;
                 elem.classList.add('homeSectionsContainer');
 
-                loadHeroBanner(elem.querySelector('.homeHero'), apiClient);
-                loadRecommendations(elem.querySelector('.homeRecommendations'), apiClient)
+                // One recommender run feeds the billboard and the personalised rows.
+                const plan = buildHomePlan(apiClient, getDisplayName(user));
+                loadHeroBanner(elem.querySelector('.homeHero'), apiClient, plan.then(p => p.billboard).catch(() => null));
+                loadRecommendations(elem.querySelector('.homeRecommendations'), apiClient, plan)
                     .catch(err => console.error('[HomeRecommendations] failed to load', err));
 
                 const promises = [];

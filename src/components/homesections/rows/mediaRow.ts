@@ -3,7 +3,9 @@ import escapeHtml from 'escape-html';
 import type { ApiClient } from 'jellyfin-apiclient';
 
 import imageLoader from 'components/images/imageLoader';
-import { appRouter } from 'components/router/appRouter';
+import { openMoreInfo } from 'homefin/moreInfo/moreInfo';
+import { decorateRow } from 'homefin/ui/badges';
+import { playTitleNow } from 'homefin/ui/play';
 import globalize from 'lib/globalize';
 
 import { attachHoverPreview } from './hoverPreview';
@@ -21,6 +23,8 @@ export interface RowOptions {
     href?: string
     /** Prefer each episode's own still over its show's artwork. */
     useEpisodeImages?: boolean
+    /** "TOP 10" badges and "Recently Added" ribbons (off for Continue Watching / Next Up). */
+    badges?: boolean
 }
 
 /** Elements that own a rendered row keep a reference to its data. */
@@ -160,11 +164,16 @@ export function renderRow(elem: RowElement, options: RowOptions, apiClient: ApiC
 
     imageLoader.lazyChildren(elem);
     bindSlider(elem);
+    elem.classList.toggle('hfRow-noBadges', options.badges === false);
+    decorateRow(elem);
 
     elem.querySelector('.hfRow-track')?.addEventListener('click', (e) => {
         const card = (e.target as HTMLElement).closest<HTMLElement>('.hfCard');
         const item = card && elem.hfItems?.[Number(card.dataset.index)];
-        if (item) appRouter.showItem(item);
+        if (!item) return;
+        // Something part-watched carries on playing; anything else opens More Info.
+        if (getProgressPercent(item)) playTitleNow(item, apiClient);
+        else openMoreInfo(item, apiClient);
     });
 
     attachHoverPreview(elem, apiClient);

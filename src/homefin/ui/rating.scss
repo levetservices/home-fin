@@ -1,0 +1,51 @@
+// Coloured age-rating circle (see rating.ts).
+
+.hfRating {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 1.75em;
+    height: 1.75em;
+    padding: 0 0.15em;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 0.85em;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-shadow: none;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+.hfRating-pill {
+    padding: 0 0.5em;
+    border-radius: 999px;
+}
+
+.hfRating-u {
+    background: #00a54f;
+}
+
+.hfRating-pg {
+    background: #fbb900;
+    color: #000;
+}
+
+.hfRating-12 {
+    background: #f47d20;
+}
+
+.hfRating-15 {
+    background: #e5007d;
+}
+
+.hfRating-18 {
+    background: #dc0a14;
+}
+
+.hfRating-unknown {
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: transparent;
+}

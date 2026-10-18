@@ -1,0 +1,49 @@
+// "TOP 10" badge (top left) and the red ribbon (bottom centre) on cards (see badges.ts).
+
+.hfBadges {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.hfBadge-top10 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 1.75em;
+    height: 2.15em;
+    border-bottom-right-radius: 2px;
+    background: #e50914;
+    color: #fff;
+    font-size: clamp(0.62em, 0.75vw, 0.9em);
+    font-weight: 900;
+    line-height: 1;
+
+    span:first-child {
+        font-size: 0.5em;
+        letter-spacing: 0.05em;
+    }
+
+    span:last-child {
+        font-size: 0.95em;
+        letter-spacing: -0.04em;
+    }
+}
+
+.hfBadge-ribbon {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    padding: 0.3em 0.7em 0.25em;
+    border-radius: 2px 2px 0 0;
+    background: #e50914;
+    color: #fff;
+    font-size: clamp(0.62em, 0.72vw, 0.85em);
+    font-weight: 700;
+    white-space: nowrap;
+    transform: translateX(-50%);
+}

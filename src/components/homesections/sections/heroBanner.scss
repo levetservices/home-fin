@@ -1,43 +1,35 @@
-// Netflix-style featured "billboard" at the top of the home screen.
-// Themes can retune it through --hf-bg (the page colour the art fades into).
+// Netflix's billboard: an inset, rounded card at the top of the home screen.
 
 $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
 .homeHero {
+    --hf-hero-gutter: 3.3%;
+
     position: relative;
-    height: min(56.25vw, 92vh);
-    min-height: 28em;
-    margin-bottom: -9vw;
+    height: min(44vw, 76vh);
+    min-height: 26em;
+    margin: 0.4em var(--hf-hero-gutter) 2.6vw;
     overflow: hidden;
     isolation: isolate;
+    border-radius: 16px;
+    background: #000;
     color: #fff;
 }
 
-// Rows that follow tuck up over the faded bottom of the billboard.
-.homeHero ~ .verticalSection,
-.homeHero ~ .homeRecommendations {
-    position: relative;
-    z-index: 1;
-}
-
-.homeHero-slides {
+.homeHero-art {
     position: absolute;
     inset: 0;
     z-index: -2;
-    cursor: pointer;
-}
-
-.homeHero-slide {
-    position: absolute;
-    inset: 0;
     background-size: cover;
     background-position: center 20%;
-    opacity: 0;
-    transition: opacity 1s ease;
+    cursor: pointer;
+    animation: hf-hero-art-in 1s ease both;
 }
 
-.homeHero-slide.is-active {
-    opacity: 1;
+@keyframes hf-hero-art-in {
+    from {
+        opacity: 0;
+    }
 }
 
 .homeHero-scrim {
@@ -45,17 +37,16 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    // The bottom fade is listed first so it paints on top and ends exactly on the page colour.
     background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, var(--hf-bg, #141414) 100%),
-        linear-gradient(77deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 85%);
+        linear-gradient(180deg, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.65) 100%),
+        linear-gradient(77deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.35) 45%, rgba(0, 0, 0, 0) 75%);
 }
 
 .homeHero-content {
     position: absolute;
-    left: 0;
-    bottom: 33%;
-    width: min(40%, 40em);
+    left: 4%;
+    bottom: 9%;
+    width: min(44%, 40em);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -65,7 +56,7 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     animation: hf-hero-in 0.9s $hero-ease both;
 }
 
-@for $i from 2 through 5 {
+@for $i from 2 through 4 {
     .homeHero-content.is-entering > :nth-child(#{$i}) {
         animation-delay: #{($i - 1) * 0.07}s;
     }
@@ -81,25 +72,6 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
         opacity: 1;
         transform: none;
     }
-}
-
-.homeHero-kind {
-    margin-bottom: 0.8vw;
-    font-size: clamp(0.7em, 0.85vw, 1em);
-    font-weight: 700;
-    letter-spacing: 0.32em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.85);
-}
-
-.homeHero-kind::before {
-    content: "";
-    display: inline-block;
-    width: 0.25em;
-    height: 1.1em;
-    margin-right: 0.7em;
-    vertical-align: -0.2em;
-    background: var(--hf-brand, #e50914);
 }
 
 .homeHero-title {
@@ -118,40 +90,34 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
 .homeHero-logo {
     display: block;
-    max-width: min(36vw, 100%);
-    max-height: 13vw;
+    max-width: min(34vw, 100%);
+    max-height: 11vw;
     width: auto;
     height: auto;
     object-fit: contain;
     object-position: left bottom;
 }
 
+// "Series • Action • 2017 • 5 Seasons • (15)" in bold white.
 .homeHero-meta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.2em 0.9em;
-    font-size: clamp(0.85em, 1vw, 1.15em);
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
+    gap: 0.2em 0;
+    font-size: clamp(0.85em, 1.05vw, 1.2em);
+    font-weight: 700;
+    color: #fff;
     text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-.homeHero-score {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.15em;
-    color: var(--hf-score, #46d369);
-    font-weight: 700;
-
-    .material-icons {
-        font-size: 1.1em;
-    }
+.homeHero-metaItem + .homeHero-metaItem::before {
+    content: "•";
+    margin: 0 0.5em;
 }
 
 .homeHero-overview {
-    margin: 1vw 0 0;
-    font-size: clamp(0.95em, 1.25vw, 1.45em);
+    margin: 0.9vw 0 0;
+    font-size: clamp(0.95em, 1.15vw, 1.35em);
     font-weight: 400;
     line-height: 1.35;
     color: #fff;
@@ -166,24 +132,25 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.75em;
-    margin-top: 1.6vw;
+    gap: 0.7em;
+    margin-top: 1.5vw;
 }
 
+// Pill buttons: Play (white, black icon) and More Info (translucent grey).
 .homeHero-play.emby-button,
 .homeHero-info.emby-button {
     display: inline-flex;
     align-items: center;
-    gap: 0.45em;
+    gap: 0.4em;
     margin: 0;
-    padding: 0.55em 1.8em 0.55em 1.35em;
-    border-radius: var(--hf-button-radius, 4px);
-    font-size: clamp(1em, 1.2vw, 1.35em);
+    padding: 0.5em 1.7em 0.5em 1.3em;
+    border-radius: 999px;
+    font-size: clamp(1em, 1.15vw, 1.3em);
     font-weight: 700;
     transition: background-color 0.15s ease, transform 0.15s ease;
 
     .material-icons {
-        font-size: 1.6em;
+        font-size: 1.55em;
     }
 }
 
@@ -195,6 +162,7 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 .homeHero-info.emby-button {
     background: rgba(109, 109, 110, 0.7);
     color: #fff;
+    backdrop-filter: blur(6px);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -203,7 +171,7 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .homeHero-info.emby-button:hover {
-        background: rgba(109, 109, 110, 0.4);
+        background: rgba(109, 109, 110, 0.45);
     }
 }
 
@@ -218,120 +186,65 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     outline-offset: 3px;
 }
 
-// Age rating flag on the right edge.
-.homeHero-side {
+// Why this title: "👍 We think you'll love this!", "🎬 Starring …".
+.homeHero-reasons {
     position: absolute;
-    right: 0;
-    bottom: 35%;
-}
-
-.homeHero-ratingFlag {
-    display: block;
-    padding: 0.5vw 3.5vw 0.5vw 0.8vw;
-    border-left: 3px solid #dcdcdc;
-    background: rgba(51, 51, 51, 0.6);
-    font-size: clamp(0.9em, 1.1vw, 1.3em);
-    font-weight: 500;
-    color: #fff;
-}
-
-// Only used when several titles rotate (SLIDE_COUNT > 1).
-.homeHero-arrow {
-    position: absolute;
-    top: 50%;
-    z-index: 2;
-    width: 2.8em;
-    height: 2.8em;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
+    right: 3%;
+    bottom: 9%;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    background: rgba(20, 20, 20, 0.5);
-    cursor: pointer;
-    opacity: 0;
-    transform: translateY(-50%);
-    transition: opacity 0.3s ease;
-}
-
-.homeHero-arrow-prev {
-    left: 1em;
-}
-
-.homeHero-arrow-next {
-    right: 1em;
-}
-
-.homeHero:hover .homeHero-arrow {
-    opacity: 1;
-}
-
-.homeHero-dots {
-    position: absolute;
-    left: 50%;
-    bottom: 12vw;
-    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
     gap: 0.5em;
-    transform: translateX(-50%);
-}
-
-.homeHero-dot {
-    width: 7px;
-    height: 7px;
+    margin: 0;
     padding: 0;
-    border: 0;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.35);
-    cursor: pointer;
-}
+    list-style: none;
+    animation: hf-hero-in 0.9s $hero-ease 0.3s both;
 
-.homeHero-dot.is-active {
-    background: #fff;
+    li {
+        padding: 0.45em 0.95em;
+        border-radius: 999px;
+        background: rgba(20, 20, 20, 0.6);
+        backdrop-filter: blur(8px);
+        font-size: clamp(0.8em, 0.9vw, 1.05em);
+        font-weight: 500;
+        white-space: nowrap;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .homeHero-slide {
-        transition-duration: 0.3s;
-    }
-
-    .homeHero-content.is-entering > * {
+    .homeHero-art,
+    .homeHero-content.is-entering > *,
+    .homeHero-reasons {
         animation: none;
     }
 }
 
-@media (hover: none) {
-    .homeHero-arrow {
-        display: none;
-    }
-}
-
-// Phones: taller crop, centred title treatment, no synopsis.
+// Phones: a taller card, centred title treatment, no synopsis or reasons.
 @media all and (max-width: 50em) {
     .homeHero {
-        height: 78vh;
-        min-height: 26em;
-        margin-bottom: -2em;
+        height: 70vh;
+        min-height: 24em;
+        margin-top: 0.2em;
+        border-radius: 12px;
     }
 
     .homeHero-scrim {
-        background:
-            linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 22%),
-            linear-gradient(0deg, var(--hf-bg, #141414) 0%, rgba(0, 0, 0, 0.6) 30%, rgba(0, 0, 0, 0) 60%);
+        background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 40%, rgba(0, 0, 0, 0) 65%);
     }
 
     .homeHero-content {
+        left: 0;
         width: 100%;
-        bottom: 3.5em;
+        bottom: 1.6em;
+        padding: 0 1em;
         align-items: center;
         text-align: center;
         box-sizing: border-box;
     }
 
     .homeHero-logo {
-        max-width: 75vw;
-        max-height: 30vw;
+        max-width: 70vw;
+        max-height: 28vw;
         object-position: center bottom;
     }
 
@@ -341,12 +254,12 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .homeHero-overview,
-    .homeHero-side {
+    .homeHero-reasons {
         display: none;
     }
 
     .homeHero-actions {
         justify-content: center;
-        margin-top: 1.1em;
+        margin-top: 1em;
     }
 }

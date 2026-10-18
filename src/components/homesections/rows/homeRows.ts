@@ -49,7 +49,8 @@ export function loadContinueWatchingRow(elem: RefreshableRow, apiClient: ApiClie
         return {
             title: getDisplayName(user) ? globalize.translate('HeaderContinueWatchingFor', getDisplayName(user)) : globalize.translate('HeaderContinueWatching'),
             items: result.Items || [],
-            useEpisodeImages: userSettings.useEpisodeImagesInNextUpAndResume()
+            useEpisodeImages: userSettings.useEpisodeImagesInNextUpAndResume(),
+            badges: false
         };
     }, apiClient);
 }
@@ -74,7 +75,8 @@ export function loadNextUpRow(elem: RefreshableRow, apiClient: ApiClient, userSe
             title: globalize.translate('NextUp'),
             href: appRouter.getRouteUrl('nextup', { serverId: apiClient.serverId() }),
             items: result.Items || [],
-            useEpisodeImages: userSettings.useEpisodeImagesInNextUpAndResume()
+            useEpisodeImages: userSettings.useEpisodeImagesInNextUpAndResume(),
+            badges: false
         };
     }, apiClient);
 }

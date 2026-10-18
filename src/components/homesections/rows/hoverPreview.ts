@@ -2,8 +2,10 @@ import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base
 import escapeHtml from 'escape-html';
 import type { ApiClient } from 'jellyfin-apiclient';
 
-import { playbackManager } from 'components/playback/playbackmanager';
-import { appRouter } from 'components/router/appRouter';
+import { openMoreInfo } from 'homefin/moreInfo/moreInfo';
+import { forgetTaste } from 'homefin/recs';
+import { playTitleNow } from 'homefin/ui/play';
+import { ratingBadgeHtml } from 'homefin/ui/rating';
 import globalize from 'lib/globalize';
 
 import { formatRuntime, getCardArt, getProgressPercent, getRemainingTicks } from './artwork';
@@ -33,7 +35,7 @@ function getMetaHtml(item: BaseItemDto) {
     if (item.CommunityRating) {
         html += `<span class="hfPreview-score"><span class="material-icons" aria-hidden="true">star</span>${item.CommunityRating.toFixed(1)}</span>`;
     }
-    if (item.OfficialRating) html += `<span class="hfPreview-age">${escapeHtml(item.OfficialRating)}</span>`;
+    html += ratingBadgeHtml(item.OfficialRating);
 
     if (item.Type === 'Episode') {
         const code = item.ParentIndexNumber != null && item.IndexNumber != null ? `S${item.ParentIndexNumber}:E${item.IndexNumber}` : '';
@@ -54,6 +56,7 @@ function getPreviewHtml(item: BaseItemDto, apiClient: ApiClient) {
     const art = getCardArt(item, apiClient, { width: 960 });
     const isFavourite = !!item.UserData?.IsFavorite;
     const isLiked = item.UserData?.Likes === true;
+    const isDisliked = item.UserData?.Likes === false;
     const resume = getResumeTicks(item);
 
     let html = `<div class="hfPreview-art" style="background-image:url('${art.url}')" data-action="info">`;
@@ -68,7 +71,8 @@ function getPreviewHtml(item: BaseItemDto, apiClient: ApiClient) {
     html += '<div class="hfPreview-actions">';
     html += circleButton('play', 'play_arrow', globalize.translate(resume ? 'ButtonResume' : 'Play'), 'hfPreview-btn-play');
     html += circleButton('favourite', isFavourite ? 'check' : 'add', globalize.translate(isFavourite ? 'Favorite' : 'AddToFavorites'), isFavourite ? 'is-on' : '');
-    html += circleButton('like', isLiked ? 'thumb_up' : 'thumb_up_off_alt', globalize.translate('Like'), isLiked ? 'is-on' : '');
+    html += circleButton('like', isLiked ? 'thumb_up' : 'thumb_up_off_alt', 'I like this', isLiked ? 'is-on' : '');
+    html += circleButton('dislike', isDisliked ? 'thumb_down' : 'thumb_down_off_alt', 'Not for me', isDisliked ? 'is-on' : '');
     html += circleButton('info', 'expand_more', globalize.translate('MoreInfo'), 'hfPreview-btn-info');
     html += '</div>';
     html += getMetaHtml(item);
@@ -85,6 +89,32 @@ function getPreviewHtml(item: BaseItemDto, apiClient: ApiClient) {
     }
     html += '</div>';
     return html;
+}
+
+function setRatingButtons(el: HTMLElement, likes: boolean | null) {
+    const up = el.querySelector<HTMLElement>('[data-action="like"]');
+    const down = el.querySelector<HTMLElement>('[data-action="dislike"]');
+    up?.classList.toggle('is-on', likes === true);
+    down?.classList.toggle('is-on', likes === false);
+    const upIcon = up?.querySelector('.material-icons');
+    const downIcon = down?.querySelector('.material-icons');
+    if (upIcon) upIcon.textContent = likes === true ? 'thumb_up' : 'thumb_up_off_alt';
+    if (downIcon) downIcon.textContent = likes === false ? 'thumb_down' : 'thumb_down_off_alt';
+}
+
+/** Thumbs up / down write Jellyfin's Likes (pressing the same thumb again clears it). */
+function rate(item: BaseItemDto, likes: boolean, el: HTMLElement, apiClient: ApiClient) {
+    const userId = apiClient.getCurrentUserId();
+    const clearing = item.UserData?.Likes === likes;
+    const request = clearing ?
+        apiClient.clearUserItemRating(userId, item.Id || '') :
+        apiClient.updateUserItemRating(userId, item.Id || '', likes);
+    request.then(() => {
+        const value = clearing ? null : likes;
+        item.UserData = { ...item.UserData, Likes: value };
+        forgetTaste(apiClient);
+        setRatingButtons(el, value);
+    }).catch((err: unknown) => console.error('[HoverPreview] rating failed', err));
 }
 
 function closeCurrent() {
@@ -127,8 +157,7 @@ function open(card: HTMLElement, item: BaseItemDto, apiClient: ApiClient) {
         switch (button?.dataset.action) {
             case 'play':
                 close();
-                playbackManager.play({ items: [item], startPositionTicks: getResumeTicks(item) })
-                    .catch((err: unknown) => console.error('[HoverPreview] playback failed', err));
+                playTitleNow(item, apiClient);
                 break;
             case 'favourite': {
                 const next = !item.UserData?.IsFavorite;
@@ -139,21 +168,13 @@ function open(card: HTMLElement, item: BaseItemDto, apiClient: ApiClient) {
                 }).catch((err: unknown) => console.error('[HoverPreview] favourite failed', err));
                 break;
             }
-            case 'like': {
-                const next = item.UserData?.Likes !== true;
-                const request = next ?
-                    apiClient.updateUserItemRating(userId, item.Id || '', true) :
-                    apiClient.clearUserItemRating(userId, item.Id || '');
-                request.then(() => {
-                    item.UserData = { ...item.UserData, Likes: next ? true : null };
-                    button.classList.toggle('is-on', next);
-                    button.querySelector('.material-icons')!.textContent = next ? 'thumb_up' : 'thumb_up_off_alt';
-                }).catch((err: unknown) => console.error('[HoverPreview] rating failed', err));
+            case 'like':
+            case 'dislike':
+                rate(item, button.dataset.action === 'like', el, apiClient);
                 break;
-            }
             case 'info':
                 close();
-                appRouter.showItem(item);
+                openMoreInfo(item, apiClient);
                 break;
             default:
                 break;

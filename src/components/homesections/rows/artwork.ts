@@ -4,7 +4,7 @@ import type { ApiClient } from 'jellyfin-apiclient';
 /** Image types every row query should ask for so cards can pick the best art. */
 export const ROW_IMAGE_TYPES = 'Primary,Backdrop,Thumb,Logo';
 /** Fields the cards and hover previews read. */
-export const ROW_FIELDS = 'Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ChildCount,PrimaryImageAspectRatio,MediaSourceCount';
+export const ROW_FIELDS = 'Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ChildCount,PrimaryImageAspectRatio,MediaSourceCount,DateCreated';
 
 export interface CardArt {
     url: string
@@ -79,7 +79,8 @@ export function getProgressPercent(item: BaseItemDto) {
 
 export function formatRuntime(ticks?: number | null) {
     if (!ticks) return '';
-    const minutes = Math.round(ticks / 600000000);
+    // Never "0m": very short clips round up to a minute.
+    const minutes = Math.max(1, Math.round(ticks / 600000000));
     const hours = Math.floor(minutes / 60);
     return hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }

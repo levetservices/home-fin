@@ -10,28 +10,29 @@
 
 .hfRow {
     --hf-gutter: 3.3%;
-    --hf-row-gap: 0.45vw;
-    --hf-cols: 6;
+    --hf-row-gap: 0.55vw;
+    // A fraction shows the edge of the next card, hinting the row scrolls.
+    --hf-cols: 5.2;
 
     position: relative;
     margin: 0 0 2.6vw;
 }
 
 @media (max-width: 1399px) {
-    .hfRow { --hf-cols: 5; }
+    .hfRow { --hf-cols: 4.2; }
 }
 
 @media (max-width: 1099px) {
-    .hfRow { --hf-cols: 4; }
+    .hfRow { --hf-cols: 3.2; }
 }
 
 @media (max-width: 799px) {
-    .hfRow { --hf-cols: 3; }
+    .hfRow { --hf-cols: 2.3; }
 }
 
 @media (max-width: 499px) {
     .hfRow {
-        --hf-cols: 2.3;
+        --hf-cols: 1.6;
         --hf-row-gap: 6px;
     }
 }
@@ -42,16 +43,16 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    margin-bottom: 0.5em;
+    margin-bottom: 0.6em;
 }
 
 .hfRow-title {
     margin: 0;
     display: inline-flex;
     align-items: baseline;
-    font-size: clamp(1.05em, 1.35vw, 1.6em);
+    font-size: clamp(1.15em, 1.6vw, 1.75em);
     font-weight: 700;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.01em;
     color: var(--hf-row-title, #e5e5e5);
     text-decoration: none;
 }
@@ -284,7 +285,7 @@ a.hfRow-title:hover {
     line-height: 1;
     letter-spacing: -0.12em;
     color: #141414;
-    -webkit-text-stroke: max(2px, 0.25vw) #595959;
+    -webkit-text-stroke: max(1.5px, 0.12vw) #8c8c8c;
     user-select: none;
 }
 
@@ -304,7 +305,7 @@ a.hfRow-title:hover {
     position: absolute;
     z-index: 1000;
     overflow: hidden;
-    border-radius: 6px;
+    border-radius: var(--hf-card-radius, 6px);
     background: var(--hf-preview-bg, #181818);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.75);
     color: #fff;
@@ -425,13 +426,6 @@ a.hfRow-title:hover {
     .material-icons {
         font-size: 1.1em;
     }
-}
-
-.hfPreview-age {
-    padding: 0 0.4em;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    font-size: 0.9em;
-    line-height: 1.4;
 }
 
 .hfPreview-progress {

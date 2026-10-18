@@ -1,0 +1,567 @@
+// Netflix "More Info" pop-up (see moreInfo.ts). Theme-independent: always dark.
+
+html.hfInfo-lock,
+html.hfInfo-lock body {
+    overflow: hidden;
+}
+
+.hfInfo {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2em 0 4em;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-family: "Netflix Sans", "Helvetica Neue", helvetica, "Segoe UI", roboto, arial, sans-serif;
+    animation: hf-info-fade 0.2s ease-out;
+
+    &.is-closing {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+}
+
+@keyframes hf-info-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes hf-info-rise {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.98);
+    }
+}
+
+.hfInfo-modal {
+    position: relative;
+    width: min(850px, 92vw);
+    min-height: 60vh;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #181818;
+    box-shadow: 0 3px 24px rgba(0, 0, 0, 0.75);
+    font-size: 1rem;
+    animation: hf-info-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    h3 {
+        margin: 0;
+        font-size: 1.5em;
+        font-weight: 700;
+    }
+}
+
+.hfInfo-spinner {
+    position: absolute;
+    top: 30vh;
+    left: 50%;
+    width: 3em;
+    height: 3em;
+    margin-left: -1.5em;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #e50914;
+    border-radius: 50%;
+    animation: hf-info-spin 0.8s linear infinite;
+}
+
+@keyframes hf-info-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+// ── art + actions ───────────────────────────────────────────────────────
+
+.hfInfo-hero {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    background-size: cover;
+    background-position: center top;
+}
+
+.hfInfo-heroFade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(0deg, #181818 0%, rgba(24, 24, 24, 0) 45%);
+}
+
+.hfInfo-close {
+    position: absolute;
+    top: 1em;
+    right: 1em;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25em;
+    height: 2.25em;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #181818;
+    color: #fff;
+    cursor: pointer;
+
+    .material-icons {
+        font-size: 1.5em;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #fff;
+    }
+}
+
+.hfInfo-heroBody {
+    position: absolute;
+    left: 3em;
+    right: 3em;
+    bottom: 8%;
+}
+
+.hfInfo-logo {
+    display: block;
+    max-width: 45%;
+    max-height: 7em;
+    margin-bottom: 1.4em;
+    object-fit: contain;
+    object-position: left bottom;
+}
+
+.hfInfo-title {
+    margin: 0 0 0.6em;
+    font-size: 2.6em;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.hfInfo-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55em;
+}
+
+.hfInfo-play {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    height: 2.6em;
+    padding: 0 1.6em 0 1.1em;
+    border: 0;
+    border-radius: 4px;
+    background: #fff;
+    color: #000;
+    font: inherit;
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+
+    .material-icons {
+        font-size: 1.9em;
+    }
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.75);
+    }
+
+    &:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+}
+
+.hfInfo-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.6em;
+    height: 2.6em;
+    padding: 0;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    background: rgba(42, 42, 42, 0.6);
+    color: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+
+    .material-icons {
+        font-size: 1.4em;
+    }
+
+    &:hover,
+    &.is-on,
+    &:focus-visible {
+        border-color: #fff;
+        outline: none;
+    }
+}
+
+// ── details ─────────────────────────────────────────────────────────────
+
+.hfInfo-body {
+    padding: 0 3em 2.5em;
+}
+
+.hfInfo-details {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 2em;
+    margin-top: 0.4em;
+
+    p {
+        margin: 0 0 0.8em;
+        line-height: 1.45;
+    }
+}
+
+.hfInfo-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6em;
+    margin-bottom: 0.6em;
+    color: #bcbcbc;
+}
+
+.hfInfo-hd {
+    padding: 0 0.4em;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 3px;
+    color: #fff;
+    font-size: 0.75em;
+    line-height: 1.5;
+}
+
+.hfInfo-maturity {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    margin-bottom: 1em;
+    color: #fff;
+}
+
+.hfInfo-tagline {
+    font-weight: 700;
+}
+
+.hfInfo-overview {
+    font-size: 1.05em;
+}
+
+.hfInfo-detailsSide {
+    font-size: 0.9em;
+}
+
+.hfInfo-label {
+    color: #777;
+}
+
+.hfInfo-more {
+    color: #fff;
+    font-style: italic;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.hfInfo-full {
+    display: inline-flex;
+    align-items: center;
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+
+    .material-icons {
+        font-size: 1.3em;
+    }
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+// ── sections ────────────────────────────────────────────────────────────
+
+.hfInfo-section {
+    margin-top: 2.2em;
+}
+
+.hfInfo-sectionHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+    margin-bottom: 1em;
+}
+
+.hfInfo-seasons {
+    padding: 0.5em 2.2em 0.5em 1em;
+    border: 1px solid #4d4d4d;
+    border-radius: 4px;
+    background: #242424 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%23fff' d='M0 0h12L6 8z'/%3E%3C/svg%3E") no-repeat right 0.9em center;
+    color: #fff;
+    font: inherit;
+    font-size: 1.05em;
+    font-weight: 700;
+    appearance: none;
+    cursor: pointer;
+}
+
+.hfInfo-seasonName {
+    font-size: 1.05em;
+    font-weight: 700;
+}
+
+.hfInfo-episodes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    transition: opacity 0.2s ease;
+
+    &.is-loading {
+        opacity: 0.4;
+    }
+
+    li {
+        border-bottom: 1px solid #404040;
+    }
+}
+
+.hfInfo-episodePlay {
+    font-size: 2.6em !important;
+    opacity: 0;
+    filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.6));
+    transition: opacity 0.15s ease;
+}
+
+.hfInfo-episode {
+    display: flex;
+    align-items: center;
+    gap: 1.2em;
+    width: 100%;
+    padding: 1.4em 1.2em;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        outline: none;
+        background: #333;
+
+        .hfInfo-episodePlay {
+            opacity: 1;
+        }
+    }
+}
+
+.hfInfo-episodeNumber {
+    flex: 0 0 1.6em;
+    color: #d2d2d2;
+    font-size: 1.5em;
+    text-align: center;
+}
+
+.hfInfo-episodeStill {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 9.5em;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 4px;
+    background-color: #2f2f2f;
+    background-size: cover;
+    background-position: center;
+}
+
+.hfInfo-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: #5a5a5a;
+
+    span {
+        display: block;
+        height: 100%;
+        background: #e50914;
+    }
+}
+
+.hfInfo-episodeText {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+    min-width: 0;
+}
+
+.hfInfo-episodeHead {
+    display: flex;
+    justify-content: space-between;
+    gap: 1em;
+    font-weight: 700;
+}
+
+.hfInfo-episodeTime {
+    flex-shrink: 0;
+    font-weight: 400;
+}
+
+.hfInfo-episodeOverview {
+    color: #d2d2d2;
+    font-size: 0.9em;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+// More Like This
+.hfInfo-similarGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(14em, 100%), 1fr));
+    gap: 1em;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.hfInfo-similar {
+    overflow: hidden;
+    border-radius: 4px;
+    background: #2f2f2f;
+}
+
+.hfInfo-similarArt {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    padding: 0;
+    border: 0;
+    background-color: #222;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+}
+
+.hfInfo-similarBadge {
+    position: absolute;
+    top: 0.5em;
+    right: 0.6em;
+    color: #fff;
+    font-size: 0.85em;
+    font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+.hfInfo-similarBody {
+    padding: 0.9em 1em 1.2em;
+}
+
+.hfInfo-similarHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6em;
+    margin-bottom: 0.6em;
+
+    .hfInfo-circle {
+        width: 2.3em;
+        height: 2.3em;
+    }
+}
+
+.hfInfo-similarMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    color: #bcbcbc;
+}
+
+.hfInfo-similarTitle {
+    margin: 0 0 0.4em;
+    font-weight: 700;
+}
+
+.hfInfo-similarOverview {
+    margin: 0;
+    color: #d2d2d2;
+    font-size: 0.88em;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+// About {title}
+.hfInfo-about {
+    padding-top: 1.5em;
+    border-top: 1px solid #404040;
+
+    h3 {
+        margin-bottom: 1em;
+        font-weight: 400;
+    }
+
+    p {
+        margin: 0 0 0.6em;
+        font-size: 0.9em;
+        line-height: 1.45;
+    }
+}
+
+// Phones: full-width card, single column.
+@media all and (max-width: 40em) {
+    .hfInfo {
+        padding: 0;
+    }
+
+    .hfInfo-modal {
+        width: 100%;
+        min-height: 100%;
+        border-radius: 0;
+    }
+
+    .hfInfo-heroBody {
+        left: 1em;
+        right: 1em;
+    }
+
+    .hfInfo-body {
+        padding: 0 1em 2em;
+    }
+
+    .hfInfo-details {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .hfInfo-episode {
+        padding: 1em 0.4em;
+    }
+
+    .hfInfo-episodeStill {
+        flex-basis: 7em;
+    }
+
+    .hfInfo-episodeNumber {
+        display: none;
+    }
+}

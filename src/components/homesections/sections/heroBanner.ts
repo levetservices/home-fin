@@ -4,19 +4,24 @@ import type { ApiClient } from 'jellyfin-apiclient';
 
 import layoutManager from 'components/layoutManager';
 import { playbackManager } from 'components/playback/playbackmanager';
-import { appRouter } from 'components/router/appRouter';
+import { openMoreInfo } from 'homefin/moreInfo/moreInfo';
+import { ratingBadgeHtml } from 'homefin/ui/rating';
 import globalize from 'lib/globalize';
 
 import { formatRuntime } from '../rows/artwork';
 
 import './heroBanner.scss';
 
-/** How long each featured title stays on screen (only when more than one is featured). */
-const SLIDE_INTERVAL_MS = 8000;
-/** Netflix features a single title per visit; raise this to rotate several. */
-const SLIDE_COUNT = 1;
+/** Space between the header bar and the billboard card. */
+const HEADER_GAP_PX = 10;
 /** Candidates fetched so a title with a logo (title treatment) can be preferred. */
 const CANDIDATE_COUNT = 12;
+
+/** The title to feature and why ("We think you'll love this!", "Starring …"). */
+export interface FeaturedTitle {
+    item: BaseItemDto
+    reasons: string[]
+}
 
 export interface HeroController {
     pause: () => void
@@ -26,50 +31,44 @@ export interface HeroController {
 
 export type HeroElement = HTMLElement & { heroController?: HeroController };
 
+export const HERO_FIELDS = 'Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ChildCount';
+
 const ITEM_QUERY = {
     IncludeItemTypes: 'Movie,Series',
     Recursive: true,
     SortBy: 'Random',
     ImageTypes: 'Backdrop',
     HasOverview: true,
-    Fields: 'Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ChildCount',
+    Fields: HERO_FIELDS,
     EnableImageTypes: 'Backdrop,Logo',
     ImageTypeLimit: 1,
     EnableTotalRecordCount: false,
     Limit: CANDIDATE_COUNT
 };
 
-/** Prefer unwatched titles, and among those ones with a logo, topping up with anything else. */
-async function fetchFeaturedItems(apiClient: ApiClient): Promise<BaseItemDto[]> {
+/** Without a recommendation: a random unwatched title, preferring ones with a logo. */
+async function fetchFallbackTitle(apiClient: ApiClient): Promise<FeaturedTitle | null> {
     const userId = apiClient.getCurrentUserId();
     const unplayed = await apiClient.getItems(userId, { ...ITEM_QUERY, IsPlayed: false });
     let candidates = unplayed.Items || [];
-    if (candidates.length < SLIDE_COUNT) {
-        const rest = await apiClient.getItems(userId, ITEM_QUERY);
-        const seen = new Set(candidates.map(item => item.Id));
-        candidates = candidates.concat((rest.Items || []).filter(item => !seen.has(item.Id)));
-    }
-    const withLogo = candidates.filter(item => item.ImageTags?.Logo);
-    const withoutLogo = candidates.filter(item => !item.ImageTags?.Logo);
-    return [...withLogo, ...withoutLogo].slice(0, SLIDE_COUNT);
+    if (!candidates.length) candidates = (await apiClient.getItems(userId, ITEM_QUERY)).Items || [];
+    const item = candidates.find(c => c.ImageTags?.Logo) || candidates[0];
+    return item ? { item, reasons: [] } : null;
 }
 
-/** Small info line under the title: "2023 · 2h 4m · Drama, Thriller". */
+/** Netflix's info line: "Series • Action • 2017 • 5 Seasons • (15)". */
 function getMetaHtml(item: BaseItemDto) {
-    const parts: string[] = [];
-    if (item.CommunityRating) {
-        parts.push(`<span class="homeHero-score"><span class="material-icons" aria-hidden="true">star</span>${item.CommunityRating.toFixed(1)}</span>`);
-    }
+    const parts: string[] = [item.Type === 'Series' ? 'Series' : 'Film'];
+    if (item.Genres?.length) parts.push(escapeHtml(item.Genres[0]));
     if (item.ProductionYear) parts.push(String(item.ProductionYear));
     if (item.Type === 'Series') {
-        if (item.ChildCount) {
-            parts.push(escapeHtml(globalize.translate(item.ChildCount === 1 ? 'ValueOneSeason' : 'ValueSeasonCount', item.ChildCount)));
-        }
+        if (item.ChildCount) parts.push(escapeHtml(globalize.translate(item.ChildCount === 1 ? 'ValueOneSeason' : 'ValueSeasonCount', item.ChildCount)));
     } else {
         const runtime = formatRuntime(item.RunTimeTicks);
         if (runtime) parts.push(runtime);
     }
-    if (item.Genres?.length) parts.push(escapeHtml(item.Genres.slice(0, 3).join(', ')));
+    const rating = ratingBadgeHtml(item.OfficialRating);
+    if (rating) parts.push(rating);
     return parts.map(part => `<span class="homeHero-metaItem">${part}</span>`).join('');
 }
 
@@ -77,12 +76,15 @@ function getResumeTicks(item: BaseItemDto) {
     return item.Type !== 'Series' ? item.UserData?.PlaybackPositionTicks || 0 : 0;
 }
 
-function getSlideContentHtml(item: BaseItemDto, apiClient: ApiClient) {
+function getReasonsHtml(reasons: string[]) {
+    if (!reasons.length) return '';
+    return '<ul class="homeHero-reasons">' + reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join('') + '</ul>';
+}
+
+function getContentHtml({ item, reasons }: FeaturedTitle, apiClient: ApiClient) {
     const logoTag = item.ImageTags?.Logo;
     const title = escapeHtml(item.Name || '');
-    let html = '';
-
-    html += `<div class="homeHero-kind">${escapeHtml(globalize.translate(item.Type === 'Series' ? 'Series' : 'Movie'))}</div>`;
+    let html = '<div class="homeHero-content">';
 
     if (logoTag && item.Id) {
         const logoUrl = apiClient.getScaledImageUrl(item.Id, { type: 'Logo', maxWidth: 900, tag: logoTag });
@@ -102,13 +104,9 @@ function getSlideContentHtml(item: BaseItemDto, apiClient: ApiClient) {
     html += `<button is="emby-button" type="button" class="homeHero-play" data-action="play"><span class="material-icons" aria-hidden="true">play_arrow</span><span>${escapeHtml(playLabel)}</span></button>`;
     html += `<button is="emby-button" type="button" class="homeHero-info" data-action="info"><span class="material-icons" aria-hidden="true">info_outline</span><span>${escapeHtml(globalize.translate('MoreInfo'))}</span></button>`;
     html += '</div>';
-
+    html += '</div>';
+    html += getReasonsHtml(reasons);
     return html;
-}
-
-/** Age rating flag that sits on the right edge of the banner. */
-function getRatingFlagHtml(item: BaseItemDto) {
-    return item.OfficialRating ? `<span class="homeHero-ratingFlag">${escapeHtml(item.OfficialRating)}</span>` : '';
 }
 
 function getBackdropUrl(item: BaseItemDto, apiClient: ApiClient) {
@@ -118,133 +116,38 @@ function getBackdropUrl(item: BaseItemDto, apiClient: ApiClient) {
     return apiClient.getScaledImageUrl(item.Id, { type: 'Backdrop', index: 0, maxWidth: width, tag });
 }
 
-/** Re-trigger a CSS animation by removing the class, forcing layout, then adding it back. */
-function restartAnimation(el: HTMLElement, className: string) {
-    el.classList.remove(className);
-    el.getBoundingClientRect();
-    el.classList.add(className);
-}
-
 /**
- * Renders an Apple TV style featured banner: rotating full-bleed artwork with
- * the title treatment, a one-line info row, a short synopsis and actions.
+ * Renders Netflix's billboard: an inset rounded card with the featured title's
+ * artwork, title treatment, info line, synopsis, actions and why it was picked.
+ * `featured` comes from the recommender; without one a random unwatched title is shown.
  */
-export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
-    let items: BaseItemDto[];
+export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient, featured?: Promise<FeaturedTitle | null>) {
+    let pick: FeaturedTitle | null = null;
     try {
-        items = await fetchFeaturedItems(apiClient);
+        pick = (await featured) || await fetchFallbackTitle(apiClient);
     } catch (err) {
-        console.error('[HomeHero] failed to load featured items', err);
-        items = [];
+        console.error('[HomeHero] failed to load the featured title', err);
     }
 
-    if (!items.length || !elem.isConnected) {
+    if (!pick || !elem.isConnected) {
         elem.innerHTML = '';
         elem.classList.add('hide');
         return;
     }
 
-    const multiple = items.length > 1;
-    let html = '<div class="homeHero-slides" aria-hidden="true">';
-    items.forEach((item, index) => {
-        html += `<div class="homeHero-slide${index === 0 ? ' is-active' : ''}" style="background-image:url('${getBackdropUrl(item, apiClient)}')"></div>`;
-    });
-    html += '</div>';
+    const { item } = pick;
+    let html = `<div class="homeHero-art" style="background-image:url('${getBackdropUrl(item, apiClient)}')" aria-hidden="true"></div>`;
     html += '<div class="homeHero-scrim"></div>';
-    html += '<div class="homeHero-content padded-left padded-right"></div>';
-    html += '<div class="homeHero-side"></div>';
-    if (multiple) {
-        html += `<button type="button" class="homeHero-arrow homeHero-arrow-prev" data-step="-1" aria-label="${escapeHtml(globalize.translate('Previous'))}"><span class="material-icons" aria-hidden="true">chevron_left</span></button>`;
-        html += `<button type="button" class="homeHero-arrow homeHero-arrow-next" data-step="1" aria-label="${escapeHtml(globalize.translate('Next'))}"><span class="material-icons" aria-hidden="true">chevron_right</span></button>`;
-        html += '<div class="homeHero-dots" role="tablist">';
-        items.forEach((item, index) => {
-            html += `<button type="button" class="homeHero-dot${index === 0 ? ' is-active' : ''}" data-index="${index}" role="tab" aria-label="${escapeHtml(item.Name || '')}"></button>`;
-        });
-        html += '</div>';
-    }
+    html += getContentHtml(pick, apiClient);
 
     elem.classList.remove('hide');
     elem.classList.add('homeHero');
     elem.innerHTML = html;
-
-    const content = elem.querySelector<HTMLElement>('.homeHero-content');
-    const slides = elem.querySelectorAll<HTMLElement>('.homeHero-slide');
-    const dots = elem.querySelectorAll<HTMLElement>('.homeHero-dot');
-    let current = 0;
-    let timer: number | undefined;
-    let holding = false;
-    let paused = false;
-
-    const show = (index: number) => {
-        current = (index + items.length) % items.length;
-        slides.forEach((slide, i) => {
-            slide.classList.toggle('is-active', i === current);
-        });
-        dots.forEach((dot, i) => {
-            dot.classList.toggle('is-active', i === current);
-            dot.setAttribute('aria-selected', String(i === current));
-        });
-        if (content) {
-            content.innerHTML = getSlideContentHtml(items[current], apiClient);
-            restartAnimation(content, 'is-entering');
-        }
-        const side = elem.querySelector<HTMLElement>('.homeHero-side');
-        if (side) side.innerHTML = getRatingFlagHtml(items[current]);
-    };
-
-    const stop = () => {
-        window.clearInterval(timer);
-        timer = undefined;
-    };
-
-    const start = () => {
-        stop();
-        if (!multiple || paused || holding || document.hidden) return;
-        timer = window.setInterval(() => {
-            if (!elem.isConnected) {
-                controller.destroy();
-                return;
-            }
-            show(current + 1);
-        }, SLIDE_INTERVAL_MS);
-    };
-
-    // Pull the banner up underneath the fixed header so it runs edge to edge.
-    const fitUnderHeader = () => {
-        elem.style.marginTop = '';
-        if (layoutManager.tv) return;
-        const top = elem.getBoundingClientRect().top + window.scrollY;
-        if (top > 0) elem.style.marginTop = `-${top}px`;
-    };
-
-    const onVisibility = () => {
-        if (document.hidden) {
-            stop();
-        } else {
-            start();
-        }
-    };
+    elem.querySelector('.homeHero-content')?.classList.add('is-entering');
 
     elem.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
-
-        const dot = target.closest<HTMLElement>('.homeHero-dot');
-        if (dot) {
-            show(Number(dot.dataset.index));
-            start();
-            return;
-        }
-
-        const arrow = target.closest<HTMLElement>('.homeHero-arrow');
-        if (arrow) {
-            show(current + Number(arrow.dataset.step));
-            start();
-            return;
-        }
-
-        const item = items[current];
-        const actionButton = target.closest<HTMLElement>('[data-action]');
-        switch (actionButton?.dataset.action) {
+        switch (target.closest<HTMLElement>('[data-action]')?.dataset.action) {
             case 'play':
                 playbackManager.play({
                     items: [item],
@@ -252,42 +155,31 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
                 }).catch((err: unknown) => console.error('[HomeHero] playback failed', err));
                 break;
             case 'info':
-                appRouter.showItem(item);
+                openMoreInfo(item, apiClient);
                 break;
             default:
-                if (target.closest('.homeHero-slides, .homeHero-title')) {
-                    appRouter.showItem(item);
-                }
+                if (target.closest('.homeHero-art, .homeHero-title')) openMoreInfo(item, apiClient);
         }
     });
 
-    // Hold the current title while the pointer or keyboard focus is on the banner.
-    const hold = () => {
-        holding = true;
-        stop();
+    // Sit just under the header whatever padding the page reserves for tab rows Home doesn't show.
+    const fitUnderHeader = () => {
+        elem.style.marginTop = '';
+        const header = document.querySelector('.skinHeader');
+        if (layoutManager.tv || !header || !elem.offsetParent) return;
+        const top = elem.getBoundingClientRect().top + window.scrollY;
+        const wanted = header.getBoundingClientRect().bottom + HEADER_GAP_PX;
+        const current = parseFloat(getComputedStyle(elem).marginTop) || 0;
+        elem.style.marginTop = `${current + wanted - top}px`;
     };
-    const release = () => {
-        holding = false;
-        start();
-    };
-    elem.addEventListener('mouseenter', hold);
-    elem.addEventListener('mouseleave', release);
-    elem.addEventListener('focusin', hold);
-    elem.addEventListener('focusout', release);
 
     const controller: HeroController = {
         pause() {
-            paused = true;
-            stop();
             window.removeEventListener('resize', fitUnderHeader);
-            document.removeEventListener('visibilitychange', onVisibility);
         },
         resume() {
-            paused = false;
             window.addEventListener('resize', fitUnderHeader);
-            document.addEventListener('visibilitychange', onVisibility);
             fitUnderHeader();
-            start();
         },
         destroy() {
             controller.pause();
@@ -295,7 +187,5 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient) {
         }
     };
     elem.heroController = controller;
-
-    show(0);
     controller.resume();
 }

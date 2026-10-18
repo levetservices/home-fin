@@ -1,9 +1,9 @@
 /*
  * Home Fin "Cinema" theme — modelled on Netflix.
  *
- * #141414 canvas, a red wordmark and red accents, a top nav of text links
- * that sits clear over the billboard and turns solid on scroll, tight
- * 4px-radius cards, and grey-on-dark controls.
+ * #141414 canvas, a red wordmark and red accents, a solid top bar whose
+ * nav marks the current page with a grey pill, an inset rounded billboard,
+ * 10px-radius cards, pill buttons and grey-on-dark controls.
  *
  * Layered on top of the stock Dark theme so anything not restyled here still
  * looks right and upstream fixes to Dark keep flowing through on merge.
@@ -21,7 +21,7 @@
     --hf-progress: #e50914;
     --hf-score: #46d369;
     --hf-explore: #54b9c5;
-    --hf-card-radius: 4px;
+    --hf-card-radius: 10px;
     --hf-button-radius: 4px;
     --hf-row-title: #e5e5e5;
     --hf-preview-bg: #181818;
@@ -80,19 +80,20 @@ a,
     color: #fff;
 }
 
-/* ── Header: wordmark + text links, clear over artwork, solid on scroll ─ */
+/* ── Header: a solid bar, wordmark + text links, the current page in a pill ─ */
 
 .skinHeader,
 .skinHeader-withBackground,
-.skinHeader.semiTransparent {
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 10%, rgba(0, 0, 0, 0) 100%);
+.skinHeader.semiTransparent,
+.skinHeader.skinHeader-scrolled {
+    background: var(--hf-bg);
     backdrop-filter: none;
     box-shadow: none;
-    transition: background-color 0.4s ease;
 }
 
-.skinHeader.skinHeader-scrolled {
-    background-color: var(--hf-bg);
+/* The video player and other full-screen views keep their clear header. */
+.skinHeader.osdHeader {
+    background: transparent;
 }
 
 .headerTop {
@@ -135,11 +136,13 @@ a,
 }
 
 .headerNavLink {
-    margin-left: 1.35em;
+    margin-left: 0.35em;
+    padding: 0.4em 0.95em;
+    border-radius: 999px;
     font-size: 0.92em;
-    font-weight: 400;
+    font-weight: 500;
     color: var(--hf-text);
-    transition: color 0.4s ease;
+    transition: color 0.3s ease, background-color 0.3s ease;
 }
 
 .headerNavLink:hover {
@@ -147,6 +150,7 @@ a,
 }
 
 .headerNavLink.headerNavLink-active {
+    background: rgba(255, 255, 255, 0.15);
     font-weight: 700;
     color: #fff;
 }
