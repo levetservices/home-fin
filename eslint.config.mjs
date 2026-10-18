@@ -41,7 +41,9 @@ export default tseslint.config(
             'coverage',
             'dist',
             '.idea',
-            '.vscode'
+            '.vscode',
+            // Home Fin accounts: a separate Node service with its own tests (homefin/accounts).
+            'homefin/accounts'
         ]
     },
 

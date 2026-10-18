@@ -21,3 +21,7 @@ config.json
 
 # environment related
 .envrc
+
+# Home Fin accounts service
+homefin/accounts/data/
+homefin/accounts/.env

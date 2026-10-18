@@ -1,0 +1,15 @@
+{
+  "name": "homefin-accounts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Netflix-style accounts and profiles for Jellyfin (Home Fin companion service)",
+  "type": "module",
+  "main": "src/server.mjs",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/server.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.mjs\""
+  }
+}
