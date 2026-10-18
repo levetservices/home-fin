@@ -11,6 +11,13 @@ interface MenuLink {
     url: string
 }
 
+/** Home Fin accounts/profiles (see homefin/SPEC.md). */
+export interface HomefinAccountsConfig {
+    enabled: boolean
+    /** Where the accounts service is mounted, same origin as the web app. */
+    apiPath?: string
+}
+
 export interface WebConfig {
     includeCorsCredentials?: boolean
     multiserver?: boolean
@@ -18,4 +25,5 @@ export interface WebConfig {
     menuLinks?: MenuLink[]
     servers?: string[]
     plugins?: string[]
+    homefinAccounts?: HomefinAccountsConfig
 }

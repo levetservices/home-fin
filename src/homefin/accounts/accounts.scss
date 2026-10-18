@@ -1,0 +1,6 @@
+// Home Fin account screens (sign in, Who's watching?, Manage Profiles, account, admin).
+// TODO(handoff): full Netflix-style styling — see homefin/HANDOFF.md.
+
+body:has(.hfAccountsPage) .skinHeader {
+    display: none !important;
+}

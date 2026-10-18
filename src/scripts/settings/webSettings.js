@@ -47,6 +47,14 @@ export function getMultiServer() {
     });
 }
 
+/** Home Fin accounts settings, `{ enabled: false }` when not configured. */
+export function getHomefinAccounts() {
+    return getConfig().then(config => ({
+        enabled: !!config.homefinAccounts?.enabled,
+        apiPath: config.homefinAccounts?.apiPath || '/homefin-api'
+    })).catch(() => ({ enabled: false, apiPath: '/homefin-api' }));
+}
+
 export function getServers() {
     return getConfig().then(config => {
         return config.servers || [];

@@ -37,6 +37,10 @@
       "color": "#0c2450"
     }
   ],
+  "homefinAccounts": {
+    "enabled": false,
+    "apiPath": "/homefin-api"
+  },
   "menuLinks": [],
   "servers": [],
   "plugins": [
