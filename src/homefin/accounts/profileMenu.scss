@@ -134,3 +134,10 @@
         text-decoration: underline;
     }
 }
+
+// Phones: the header has no room for the Kids shortcut (it's in the profile menu anyway).
+@media all and (max-width: 40em) {
+    .hfKidsLink {
+        display: none;
+    }
+}

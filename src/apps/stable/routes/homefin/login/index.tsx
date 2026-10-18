@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { accountsApi, isAccountsEnabled } from 'homefin/accounts/api';
 import { ErrorBanner, Field, Screen, errorMessage, fireAndForget, useInputSetter } from 'homefin/accounts/components';
+import { classicLoginHref } from 'homefin/accounts/session';
 
 /** Home Fin sign-in: email + password for the account, then Who's watching? */
 export default function HomefinLogin() {
@@ -17,7 +18,7 @@ export default function HomefinLogin() {
     useEffect(() => {
         fireAndForget((async () => {
             if (!(await isAccountsEnabled())) {
-                navigate('/login?classic=1');
+                navigate(classicLoginHref().slice(1));
                 return;
             }
             // Already signed in to the account? Go straight to profiles.
@@ -51,7 +52,7 @@ export default function HomefinLogin() {
                 <p className='hfAuthCard-note'>
                     New to Home Fin? Ask whoever runs this server for an invite link.
                 </p>
-                <a className='hfAuthCard-classic' href='#/login?classic=1'>Sign in with a Jellyfin user instead</a>
+                <a className='hfAuthCard-classic' href={classicLoginHref()}>Sign in with a Jellyfin user instead</a>
             </form>
         </Screen>
     );

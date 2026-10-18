@@ -39,6 +39,12 @@ function getApiClient() {
     return apiClient;
 }
 
+/** Jellyfin's own sign-in page (e.g. for an admin's Jellyfin user), for the server this browser knows. */
+export function classicLoginHref() {
+    const serverId = (ServerConnections.currentApiClient() || ServerConnections.getApiClients?.()[0])?.serverId();
+    return serverId ? `#/login?classic=1&serverid=${encodeURIComponent(serverId)}` : '#/login?classic=1';
+}
+
 /** Reload into the app at a route, so every cache starts fresh for the new user. */
 function reloadTo(route: string) {
     window.location.hash = `#${route}`;

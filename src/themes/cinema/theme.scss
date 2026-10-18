@@ -135,6 +135,23 @@ a,
     transform: scaleY(1.18);
 }
 
+@media all and (max-width: 40em) {
+    .skinHeader .pageTitle {
+        flex-shrink: 0;
+        margin-left: 0.25em;
+    }
+
+    .skinHeader .pageTitle::before {
+        font-size: 1.3rem;
+    }
+
+    .skinHeader .headerButton {
+        margin: 0;
+        padding-left: 0.35em;
+        padding-right: 0.35em;
+    }
+}
+
 .headerNavLink {
     margin-left: 0.35em;
     padding: 0.4em 0.95em;

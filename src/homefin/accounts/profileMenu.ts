@@ -1,6 +1,8 @@
 // Netflix-style profile menu for the header (plain DOM: libraryMenu.js renders the header).
 import escapeHtml from 'escape-html';
 
+import { ServerConnections } from 'lib/jellyfin-apiclient';
+
 import { accountsApi, getAvatars, isAccountsEnabled, type Profile } from './api';
 import { avatarHtml, findAvatar } from './avatar';
 import { activateProfile, getCurrentProfile, signOutEverywhere } from './session';
@@ -22,7 +24,9 @@ function getProfiles() {
 
 /** True when the header should show the Home Fin profile button and menu. */
 export function isProfileMenuEnabled() {
-    if (!getCurrentProfile()) return Promise.resolve(false);
+    // A stale profile (e.g. after signing in through Jellyfin's own page) doesn't count.
+    const profile = getCurrentProfile();
+    if (!profile || profile.jellyfinUserId !== ServerConnections.currentApiClient()?.getCurrentUserId()) return Promise.resolve(false);
     return isAccountsEnabled().catch(() => false);
 }
 
