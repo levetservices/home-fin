@@ -1,4 +1,4 @@
-import React, { type ChangeEvent, type FC, type FormEvent, type KeyboardEvent, type PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, type ChangeEvent, type FC, type FormEvent, type KeyboardEvent, type PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Page from 'components/Page';
@@ -100,15 +100,32 @@ export function useInputSetter(setter: (value: string) => void) {
 interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
     id: string
     label: string
+    /** Shown under the field with a red outline, as on netflix.com. */
+    error?: string
 }
 
 /** Netflix-style input with a floating label. */
-export const Field: FC<FieldProps> = ({ label, id, ...props }) => (
-    <div className='hfField'>
-        <input id={id} className='hfField-input' placeholder=' ' {...props} />
+export const Field = forwardRef<HTMLInputElement, FieldProps>(({ label, id, error, ...props }, ref) => (
+    <div className={`hfField${error ? ' is-invalid' : ''}`}>
+        <input
+            ref={ref}
+            id={id}
+            className='hfField-input'
+            placeholder=' '
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-error` : undefined}
+            {...props}
+        />
         <label htmlFor={id}>{label}</label>
+        {error && (
+            <p id={`${id}-error`} className='hfField-error' role='alert'>
+                <span className='material-icons' aria-hidden='true'>highlight_off</span>
+                {error}
+            </p>
+        )}
     </div>
-);
+));
+Field.displayName = 'Field';
 
 export const ErrorBanner: FC<{ message: string }> = ({ message }) => (
     message ? <div className='hfError' role='alert'>{message}</div> : null
