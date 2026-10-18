@@ -123,6 +123,11 @@ export const accountsApi = {
     trending: () => request<Trending>('GET', '/trending'),
 
     invite: (code: string) => request<{ valid: boolean, email: string | null, serverName: string }>('GET', `/invites/${encodeURIComponent(code)}`),
+    /** Moving over from a Jellyfin login (homefin/move). */
+    moveCheck: (username: string, password: string) =>
+        request<{ name: string, keepsPassword: boolean }>('POST', '/auth/move/check', { username, password }),
+    move: (fields: { username: string, password: string, mode: 'new' | 'join', email: string, profileName: string, newPassword?: string, accountPassword?: string }) =>
+        request<Me>('POST', '/auth/move', fields),
     acceptInvite: (code: string, fields: { name: string, email: string, password: string }) =>
         request<Me>('POST', `/invites/${encodeURIComponent(code)}/accept`, fields),
 

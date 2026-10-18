@@ -31,6 +31,7 @@ export const PUBLIC_PATHS = [
     '/wizarduser',
     '/homefin/login',
     '/homefin/join',
+    '/homefin/move',
     '/homefin/profiles',
     '/homefin/profiles/manage',
     '/homefin/account',

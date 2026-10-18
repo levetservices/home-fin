@@ -19,8 +19,8 @@ All three are built, pushed and checked in a real browser against Jellyfin
 | Area | Files |
 |---|---|
 | Deploying to a server | `homefin/deploy/README.md` + `install-web.sh` + `install-accounts.sh` (systemd service for Debian / Ubuntu; admin created over stdin, settings in `/etc/homefin/accounts.env`) (own folder + Jellyfin `--webdir` / `JELLYFIN_WEB_DIR`, update / rollback); rehearsed end to end |
-| Accounts service | `homefin/accounts/` (Node ≥ 22.5, zero deps, `npm test` = 21 tests). README = deployment. |
-| Account pages | `src/apps/stable/routes/homefin/{login,join,profiles,manage,account,admin}/index.tsx`, shared bits in `src/homefin/accounts/` (`api.ts`, `session.ts`, `components.tsx`, `ProfileTile.tsx`, `accounts.scss`) |
+| Accounts service | `homefin/accounts/` (Node ≥ 22.5, zero deps, `npm test` = 25 tests). README = deployment. |
+| Account pages | `src/apps/stable/routes/homefin/{login,join,move,profiles,manage,account,admin}/index.tsx` (`move` = self-service move from a Jellyfin login), shared bits in `src/homefin/accounts/` (`api.ts`, `session.ts`, `components.tsx`, `ProfileTile.tsx`, `accounts.scss`) |
 | Routing / sign-in redirect | `src/apps/stable/routes/asyncRoutes/public.ts`, `PUBLIC_PATHS` in `src/components/router/appRouter.js` (+ `showLocalLogin`), `bounce()` in `src/components/ConnectionRequired.tsx`, `logout()` in `src/utils/dashboard.js` |
 | Header | `src/scripts/libraryMenu.js` → profile menu `src/homefin/accounts/profileMenu.{ts,scss}`, bell `src/homefin/ui/notifications.{ts,scss}`; pill nav in `src/themes/cinema/theme.scss` |
 | Admin Dashboard nav | `src/apps/dashboard/components/DashboardNav.tsx` (section menus under the header, replacing the sidebar on ≥900px; phones keep the slide-out drawer), wired in `src/apps/dashboard/AppLayout.tsx`, page offsets in `AppOverrides.scss` |

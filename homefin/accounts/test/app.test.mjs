@@ -11,7 +11,7 @@ import { createJellyfinClient } from '../src/jellyfin.mjs';
 
 // ── fake Jellyfin ─────────────────────────────────────────────────────────
 function createFakeJellyfin() {
-    const state = { users: new Map(), auths: [], played: new Map(), nextId: 1 };
+    const state = { users: new Map(), auths: [], logouts: [], played: new Map(), nextId: 1 };
     const server = createServer(async (req, res) => {
         const url = new URL(req.url, 'http://x');
         let body = '';
@@ -29,6 +29,10 @@ function createFakeJellyfin() {
             if (!user || user.password !== json.Pw) return send(401, { error: 'bad' });
             state.auths.push({ user: user.Id, header: req.headers.authorization });
             return send(200, { AccessToken: `token-${user.Id}`, ServerId: 'srv', User: { Id: user.Id, Name: user.Name } });
+        }
+        if (url.pathname === '/Sessions/Logout' && req.method === 'POST') {
+            state.logouts.push(req.headers.authorization);
+            return send(204);
         }
         if (!admin) return send(401, { error: 'no key' });
         if (url.pathname === '/Users/New' && req.method === 'POST') {
@@ -377,6 +381,74 @@ describe('invites and admin', () => {
         assert.equal(adopted.status, 200);
         assert.notEqual(fake.state.users.get('legacy').password, 'old');
         assert.equal(fake.state.users.get('legacy').Policy.IsHidden, true);
+    });
+});
+
+describe('moving over from a Jellyfin login', () => {
+    function jellyfinUser(name, password, { admin = false } = {}) {
+        const id = `old-${name}`;
+        fake.state.users.set(id, { Id: id, Name: name, password, Policy: { IsHidden: false, IsAdministrator: admin, AuthenticationProviderId: 'x' } });
+        return id;
+    }
+
+    it('turns the user into a profile of a new account, keeping its password and history', async () => {
+        const id = jellyfinUser('alana', 'alana-long-pass');
+        const call = client();
+        const check = await call('POST', '/auth/move/check', { username: 'alana', password: 'alana-long-pass' });
+        assert.deepEqual(check.data, { name: 'alana', keepsPassword: true });
+
+        const moved = await call('POST', '/auth/move', { username: 'alana', password: 'alana-long-pass', email: 'Alana@Example.com' });
+        assert.equal(moved.status, 200);
+        assert.equal(moved.data.account.email, 'alana@example.com');
+        assert.equal(moved.data.profiles.length, 1);
+        assert.equal(moved.data.profiles[0].name, 'alana');
+        const user = fake.state.users.get(id);
+        assert.equal(user.password, 'alana-long-pass', 'TVs and phones stay signed in');
+        assert.equal(user.Policy.IsHidden, true);
+        assert.ok(fake.state.logouts.includes(`MediaBrowser Token="token-${id}"`), 'the check session is closed');
+        assert.equal(decrypt(store.profileRowByJellyfinUser(id).jellyfin_password_enc, key), 'alana-long-pass');
+
+        // Signed straight in, and the same password works for the account.
+        assert.equal((await call('GET', '/me')).status, 200);
+        assert.equal((await client()('POST', '/auth/login', { email: 'alana@example.com', password: 'alana-long-pass' })).status, 200);
+
+        const again = await client()('POST', '/auth/move', { username: 'alana', password: 'alana-long-pass', email: 'other@example.com' });
+        assert.equal(again.status, 409);
+    });
+
+    it('replaces a short Jellyfin password and asks for a proper account password', async () => {
+        const id = jellyfinUser('kid', '1234');
+        const call = client();
+        assert.equal((await call('POST', '/auth/move/check', { username: 'kid', password: '1234' })).data.keepsPassword, false);
+        assert.equal((await call('POST', '/auth/move', { username: 'kid', password: '1234', email: 'kid@example.com' })).status, 400);
+        assert.equal(store.accountRowByEmail('kid@example.com'), undefined, 'nothing half-made');
+
+        const moved = await call('POST', '/auth/move', { username: 'kid', password: '1234', email: 'kid@example.com', newPassword: 'a-better-password' });
+        assert.equal(moved.status, 200);
+        assert.notEqual(fake.state.users.get(id).password, '1234');
+        assert.equal(decrypt(store.profileRowByJellyfinUser(id).jellyfin_password_enc, key), fake.state.users.get(id).password);
+    });
+
+    it('joins an existing household account with that account\'s password', async () => {
+        const { id: accountId } = await createAccount('home@example.com');
+        jellyfinUser('mum', 'mum-long-pass');
+        const call = client();
+        const wrong = await call('POST', '/auth/move', { username: 'mum', password: 'mum-long-pass', mode: 'join', email: 'home@example.com', accountPassword: 'nope' });
+        assert.equal(wrong.status, 401);
+        const joined = await call('POST', '/auth/move', { username: 'mum', password: 'mum-long-pass', mode: 'join', email: 'home@example.com', accountPassword: 'correct horse', profileName: 'Mum' });
+        assert.equal(joined.status, 200);
+        assert.equal(joined.data.account.id, accountId);
+        assert.deepEqual(joined.data.profiles.map(p => p.name), ['Mum']);
+    });
+
+    it('turns away wrong passwords and administrators', async () => {
+        jellyfinUser('boss', 'boss-long-pass', { admin: true });
+        jellyfinUser('dad', 'dad-long-pass');
+        const call = client();
+        assert.equal((await call('POST', '/auth/move/check', { username: 'dad', password: 'wrong' })).status, 401);
+        const admin = await call('POST', '/auth/move', { username: 'boss', password: 'boss-long-pass', email: 'boss@example.com' });
+        assert.equal(admin.status, 403);
+        assert.equal(fake.state.users.get('old-boss').Policy.IsHidden, false);
     });
 });
 

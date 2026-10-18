@@ -11,6 +11,8 @@ const TRENDING_TTL_MS = 10 * 60 * 1000;
 const TRENDING_DAYS = 7;
 const INVITE_DAYS = 7;
 const MATURITIES = new Set(['kids', 'teen', 'all']);
+// Checked against when an email has no account, so the response time doesn't reveal that.
+const NO_ACCOUNT_HASH = 'scrypt$32768$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 
 // ── validation ────────────────────────────────────────────────────────────
 
@@ -204,8 +206,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         loginEmailLimiter.check(email);
         loginLimiter.check(`${ip}:${email}`);
         const row = email && store.accountRowByEmail(email);
-        // Always run scrypt so response time doesn't reveal whether the email exists.
-        const ok = await verifySecret(String(body.password ?? ''), row?.password_hash ?? 'scrypt$32768$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+        const ok = await verifySecret(String(body.password ?? ''), row?.password_hash ?? NO_ACCOUNT_HASH);
         if (!row || !ok) throw new HttpError(401, 'Incorrect email or password', 'bad_credentials');
         if (row.disabled) throw new HttpError(403, 'This account has been disabled', 'disabled');
         loginLimiter.reset(`${ip}:${email}`);
@@ -248,6 +249,101 @@ export function createApp({ store, jellyfin, key, options = {} }) {
             throw err;
         }
         store.markInviteUsed(invite.id, accountId);
+        startSession(req, res, accountId);
+        return meBody(store.account(accountId));
+    });
+
+    // ── moving over from a Jellyfin login ────────────────────────────────
+    // Someone who signs in with their old Jellyfin username and password can turn that user
+    // into a profile (keeping their history): in a new account of their own, or in an account
+    // someone in their household already has (with that account's password).
+
+    const MOVE_DEVICE = { id: 'homefin-move-check', name: 'Home Fin sign-in check', client: 'Home Fin Accounts' };
+
+    /** The Jellyfin user behind a username and password, if it can be moved to Home Fin. */
+    async function movableUser(req, body) {
+        const username = String(body.username ?? '').trim();
+        const password = String(body.password ?? '');
+        const ip = ipOf(req);
+        loginIpLimiter.check(ip);
+        loginLimiter.check(`jf:${ip}:${username.toLowerCase()}`);
+        if (!username) throw badRequest('Enter your Jellyfin username');
+
+        let auth;
+        try {
+            auth = await jellyfin.authenticate(username, password, MOVE_DEVICE);
+        } catch (err) {
+            if (err.status === 401 || err.status === 403) {
+                throw new HttpError(401, 'Incorrect Jellyfin username or password', 'bad_credentials');
+            }
+            throw err;
+        }
+        // The check needed a Jellyfin session; don't leave it lying around.
+        await jellyfin.logout(auth.AccessToken).catch(() => undefined);
+        loginLimiter.reset(`jf:${ip}:${username.toLowerCase()}`);
+
+        const user = await jellyfin.getUser(auth.User.Id);
+        if (user.Policy?.IsAdministrator) {
+            throw new HttpError(403, 'Administrators keep their Jellyfin login. Use "Sign in with Jellyfin" instead.', 'admin_user');
+        }
+        if (store.profileRowByJellyfinUser(user.Id)) {
+            throw new HttpError(409, 'This login has already moved to Home Fin. Sign in with your email.', 'already_moved');
+        }
+        // A password of 8+ characters stays, so the person's TVs and phones stay signed in.
+        // Anything shorter is replaced with one only this service knows.
+        return { user, password, keepsPassword: password.length >= 8 };
+    }
+
+    router.add('POST', '/auth/move/check', async req => {
+        const { user, keepsPassword } = await movableUser(req, await readJson(req));
+        return { name: user.Name, keepsPassword };
+    });
+
+    router.add('POST', '/auth/move', async (req, res) => {
+        const body = await readJson(req);
+        const { user, password, keepsPassword } = await movableUser(req, body);
+        const profileName = cleanName(body.profileName ?? String(user.Name).slice(0, 30), 'Profile name');
+
+        let accountId;
+        let created = false;
+        if (body.mode === 'join') {
+            const email = String(body.email ?? '').trim().toLowerCase();
+            loginEmailLimiter.check(email);
+            const row = email && store.accountRowByEmail(email);
+            const ok = await verifySecret(String(body.accountPassword ?? ''), row?.password_hash ?? NO_ACCOUNT_HASH);
+            if (!row || !ok) throw new HttpError(401, 'Incorrect Home Fin email or password', 'bad_account');
+            if (row.disabled) throw new HttpError(403, 'That account has been disabled', 'disabled');
+            loginEmailLimiter.reset(email);
+            accountId = row.id;
+            if (store.countProfiles(accountId) >= MAX_PROFILES) throw badRequest(`That account already has ${MAX_PROFILES} profiles`);
+            if (store.profileRows(accountId).some(p => p.name.toLowerCase() === profileName.toLowerCase())) {
+                throw badRequest(`That account already has a profile called ${profileName}. Pick another name.`);
+            }
+        } else {
+            const email = cleanEmail(body.email);
+            if (store.accountRowByEmail(email)) throw badRequest('There is already a Home Fin account with that email. Choose "Join an account" to add yourself to it.');
+            const accountPassword = cleanPassword(body.newPassword || password);
+            accountId = store.createAccount({ email, name: profileName, passwordHash: await hashSecret(accountPassword) });
+            created = true;
+        }
+
+        try {
+            const owner = store.account(accountId);
+            const jellyfinPassword = keepsPassword ? password : randomToken(32);
+            if (!keepsPassword) await jellyfin.setPassword(user.Id, jellyfinPassword);
+            await jellyfin.applyProfilePolicy(user.Id, 'all', { disabled: owner.disabled });
+            store.createProfile({
+                accountId,
+                name: profileName,
+                avatar: cleanAvatar(body.avatar, defaultAvatar(store.countProfiles(accountId))),
+                maturity: 'all',
+                jellyfinUserId: user.Id,
+                jellyfinPasswordEnc: encrypt(jellyfinPassword, key)
+            });
+        } catch (err) {
+            if (created) store.deleteAccount(accountId);
+            throw err;
+        }
         startSession(req, res, accountId);
         return meBody(store.account(accountId));
     });

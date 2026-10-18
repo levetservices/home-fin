@@ -15,11 +15,13 @@ export function createJellyfinClient({ url, apiKey, fetchImpl = fetch }) {
     if (!url) throw new Error('JELLYFIN_URL is required');
     const base = url.replace(/\/+$/, '');
 
-    async function call(path, { method = 'GET', body, auth = 'admin', device } = {}) {
+    async function call(path, { method = 'GET', body, auth = 'admin', device, token } = {}) {
         const headers = { Accept: 'application/json' };
         if (auth === 'admin') {
             if (!apiKey) throw new Error('JELLYFIN_API_KEY is required');
             headers.Authorization = `MediaBrowser Token="${quote(apiKey)}"`;
+        } else if (auth === 'token') {
+            headers.Authorization = `MediaBrowser Token="${quote(token)}"`;
         } else if (auth === 'device') {
             headers.Authorization = `MediaBrowser Client="${quote(device?.client || CLIENT)}", Device="${quote(device?.name || 'Browser')}", DeviceId="${quote(device?.id)}", Version="${quote(device?.version || VERSION)}"`;
         }
@@ -79,6 +81,9 @@ export function createJellyfinClient({ url, apiKey, fetchImpl = fetch }) {
         authenticate: (username, password, device) => call('/Users/AuthenticateByName', {
             method: 'POST', auth: 'device', device, body: { Username: username, Pw: password }
         }),
+
+        /** End the session behind a token (e.g. one used only to check a password). */
+        logout: token => call('/Sessions/Logout', { method: 'POST', auth: 'token', token }),
 
         /** Films and episodes a user has played, most recent first. */
         recentlyPlayed: (userId, limit = 100) => call(`/Items?${new URLSearchParams({

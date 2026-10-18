@@ -11,6 +11,23 @@ function inviteBaseUrl() {
     return window.location.href.split('#')[0];
 }
 
+/** What to send people who still sign in with a Jellyfin username. */
+function moveMessage() {
+    return 'We\'re moving to Home Fin. Open ' + inviteBaseUrl() + '#/homefin/move, sign in with your usual '
+        + 'Jellyfin username and password, and add your email. Your watch history and My List come with you.';
+}
+
+/** Copy to the clipboard where allowed (secure pages); otherwise the caller selects the text. */
+function copyText(text: string, onCopied: () => void, onFallback: () => void) {
+    // eslint-disable-next-line compat/compat -- guarded: falls back to selecting the text
+    const clipboard = window.isSecureContext ? navigator.clipboard : undefined;
+    if (!clipboard) {
+        onFallback();
+        return;
+    }
+    clipboard.writeText(text).then(onCopied, onFallback);
+}
+
 function formatDate(value?: string | null) {
     if (!value) return '';
     const date = new Date(value.includes('T') ? value : value.replace(' ', 'T') + 'Z');
@@ -119,6 +136,8 @@ export default function HomefinAdmin() {
     const [adding, setAdding] = useState(false);
     const [form, setForm] = useState(EMPTY_FORM);
     const inviteInput = useRef<HTMLInputElement>(null);
+    const moveInput = useRef<HTMLTextAreaElement>(null);
+    const [moveCopied, setMoveCopied] = useState(false);
     const onInviteNoteChange = useInputSetter(setInviteNote);
 
     const load = useCallback(async () => {
@@ -149,17 +168,11 @@ export default function HomefinAdmin() {
 
     const selectInvite = useCallback(() => inviteInput.current?.select(), []);
     const copyInvite = useCallback(() => {
-        const url = newInvite?.url;
-        if (!url) return;
-        // Clipboard API needs a secure context; otherwise select the text for a manual copy.
-        // eslint-disable-next-line compat/compat -- guarded: falls back to selecting the text
-        const clipboard = window.isSecureContext ? navigator.clipboard : undefined;
-        if (!clipboard) {
-            selectInvite();
-            return;
-        }
-        clipboard.writeText(url).then(() => setCopied(true), selectInvite);
+        if (newInvite?.url) copyText(newInvite.url, () => setCopied(true), selectInvite);
     }, [newInvite, selectInvite]);
+    const selectMove = useCallback(() => moveInput.current?.select(), []);
+    const copyMove = useCallback(() => copyText(moveMessage(), () => setMoveCopied(true), selectMove), [selectMove]);
+    const waiting = users.filter(user => !user.isAdmin).length;
 
     const toggleAdding = useCallback(() => setAdding(value => !value), []);
     const onFormChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -234,7 +247,19 @@ export default function HomefinAdmin() {
 
                 <div className='hfPanel'>
                     <h2>Existing Jellyfin users</h2>
-                    <p className='hfPanel-note'>Turn a Jellyfin user into a profile of an account and keep their watch history. Administrator users stay as normal Jellyfin logins.</p>
+                    {waiting > 0 && (
+                        <>
+                            <p className='hfPanel-note'>
+                                {waiting === 1 ? '1 person still signs' : `${waiting} people still sign`} in with a Jellyfin username.
+                                Send them this: they move themselves over in a minute, with their history.
+                            </p>
+                            <div className='hfInviteLink'>
+                                <textarea ref={moveInput} readOnly rows={3} value={moveMessage()} aria-label='Message for people to move over' onFocus={selectMove} />
+                                <button type='button' className='hfButton hfButton-primary' onClick={copyMove}>{moveCopied ? 'Copied' : 'Copy'}</button>
+                            </div>
+                        </>
+                    )}
+                    <p className='hfPanel-note'>Or move someone yourself: turn their Jellyfin user into a profile of an account. Administrator users stay as normal Jellyfin logins.</p>
                     {users.length === 0 && <p className='hfPanel-note'>Every Jellyfin user is already a profile.</p>}
                     <ul className='hfAccounts'>
                         {users.map(user => <JellyfinUserRow key={user.id} user={user} accounts={accounts} run={run} />)}

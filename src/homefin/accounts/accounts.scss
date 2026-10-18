@@ -213,6 +213,60 @@ body:has(.hfAccountsPage:not(.hide)) {
     }
 }
 
+.hfSignIn-move {
+    margin: 20px 0 0;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 15px;
+    line-height: 1.45;
+
+    a {
+        color: #fff;
+        font-weight: 500;
+    }
+}
+
+// "My own account" / "Join an account" on homefin/move.
+.hfMove-choice {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+
+    button {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding: 0.9rem 1rem;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(255, 255, 255, 0.7);
+        font: inherit;
+        font-size: 0.9rem;
+        line-height: 1.35;
+        text-align: left;
+        cursor: pointer;
+
+        &[aria-checked="true"] {
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    @media all and (max-width: 30em) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.hfMove-choiceTitle {
+    color: #fff;
+    font-size: 1rem;
+}
+
+.hfMove-hint {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
 .hfAuthCard-kicker {
     margin: 0;
     color: rgba(255, 255, 255, 0.7);
@@ -1034,7 +1088,8 @@ body:has(.hfAccountsPage:not(.hide)) {
     display: flex;
     gap: 0.6em;
 
-    input[readonly] {
+    input[readonly],
+    textarea[readonly] {
         flex: 1 1 auto;
         min-width: 0;
         padding: 0.6em 0.8em;
@@ -1044,6 +1099,12 @@ body:has(.hfAccountsPage:not(.hide)) {
         color: #fff;
         font-family: ui-monospace, "SF Mono", menlo, consolas, monospace;
         font-size: 0.9em;
+    }
+
+    textarea[readonly] {
+        font-family: inherit;
+        line-height: 1.4;
+        resize: none;
     }
 }
 

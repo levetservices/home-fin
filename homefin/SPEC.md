@@ -158,6 +158,8 @@ All JSON. `401` when no session, `404` for anything outside the account.
 | `POST /profiles/:id/session` | session | `{ pin?, device }` → Jellyfin `AuthenticationResult` for this device |
 | `GET  /trending` | session | household Top 10 films / series over the last 7 days |
 | `GET  /invites/:code` | anyone | is this invite valid? (for the join page) |
+| `POST /auth/move/check` | anyone | `{ username, password }` of a Jellyfin login → `{ name, keepsPassword }` if it can move to Home Fin (not an administrator, not already a profile) |
+| `POST /auth/move` | anyone | same credentials plus `{ mode: 'new', email, newPassword? }` or `{ mode: 'join', email, accountPassword }` and `profileName` → the Jellyfin user becomes a profile (history kept) of a new account or of that existing one, signs in. A Jellyfin password of 8+ characters is kept (devices stay signed in); a shorter one is replaced with a random one |
 | `POST /invites/:code/accept` | anyone | `{ name, email, password }` → creates account + first profile, signs in |
 | `GET  /admin/accounts` | admin | list accounts with profiles |
 | `POST /admin/accounts` | admin | create account directly `{ name, email, password }` |

@@ -116,6 +116,9 @@ export default function HomefinLogin() {
                             error={emailError}
                         />
                         <button type='submit' className='hfButton hfButton-red hfSignIn-submit'>Continue</button>
+                        <p className='hfSignIn-move'>
+                            Used to sign in with a Jellyfin username? <a href='#/homefin/move'>Move it to Home Fin</a>
+                        </p>
                     </form>
                 ) : (
                     <form onSubmit={submitPassword} noValidate>
@@ -151,6 +154,7 @@ export default function HomefinLogin() {
                         <ul id='hfSignInHelp' className='hfSignIn-helpList'>
                             <li><strong>Forgot your password?</strong> Ask whoever runs this server to reset it for you.</li>
                             <li><strong>New here?</strong> You need an invite link to create an account.</li>
+                            <li><strong>Had a Jellyfin login here?</strong> <a href='#/homefin/move'>Move it to Home Fin</a> and keep your history.</li>
                             <li><a href={classicLoginHref()}>Sign in with a Jellyfin user instead</a></li>
                         </ul>
                     )}

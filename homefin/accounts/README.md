@@ -80,7 +80,15 @@ No npm packages, just Node 22.5+ (it uses the built-in `node:sqlite`).
   profile. Links last 7 days and work once.
 * **Create the account yourself**: Admin → *Add account* with a temporary
   password.
-* **Bring over an existing Jellyfin user** (keeps their watch history): Admin →
+* **Let people move themselves over** (easiest for an existing server): the
+  sign-in page has *Move it to Home Fin*. They type their old Jellyfin username
+  and password, add an email, and their Jellyfin user becomes their profile,
+  with its history, in a new account or in one someone in their household
+  already has (with that account's password). Admin → *Existing Jellyfin users*
+  has a ready-made message to send them. A Jellyfin password of 8+ characters
+  stays the same, so their TVs and phones stay signed in; a shorter one is
+  replaced. Administrators keep their normal Jellyfin login.
+* **Bring over an existing Jellyfin user yourself** (keeps their watch history): Admin →
   *Existing Jellyfin users* → choose the account it should become a profile of.
   Administrator users are left as normal Jellyfin logins.
 
