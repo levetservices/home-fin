@@ -18,6 +18,7 @@ All three are built, pushed and checked in a real browser against Jellyfin
 
 | Area | Files |
 |---|---|
+| Deploying to a server | `homefin/deploy/README.md` + `install-web.sh` (own folder + Jellyfin `--webdir` / `JELLYFIN_WEB_DIR`, update / rollback); rehearsed end to end |
 | Accounts service | `homefin/accounts/` (Node ≥ 22.5, zero deps, `npm test` = 16 tests). README = deployment. |
 | Account pages | `src/apps/stable/routes/homefin/{login,join,profiles,manage,account,admin}/index.tsx`, shared bits in `src/homefin/accounts/` (`api.ts`, `session.ts`, `components.tsx`, `ProfileTile.tsx`, `accounts.scss`) |
 | Routing / sign-in redirect | `src/apps/stable/routes/asyncRoutes/public.ts`, `PUBLIC_PATHS` in `src/components/router/appRouter.js` (+ `showLocalLogin`), `bounce()` in `src/components/ConnectionRequired.tsx`, `logout()` in `src/utils/dashboard.js` |
