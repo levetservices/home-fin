@@ -61,8 +61,23 @@ arguments (install the build there instead of `/opt/homefin/web`).
 
 ## 3. Run the accounts service
 
-Follow `homefin/accounts/README.md` (Docker Compose example there). For the
-setup above use:
+**Debian / Ubuntu** (Jellyfin installed as a package) — one command. It needs
+Node.js 22.5+ (it tells you how to install it if yours is older), asks for your
+Home Fin web address, your email, a password and a Jellyfin API key (Dashboard →
+API Keys → **+**), and sets up a `homefin-accounts` systemd service:
+
+```sh
+sudo /opt/homefin/src/homefin/deploy/install-accounts.sh
+sudo /opt/homefin/src/homefin/deploy/install-web.sh --accounts on
+```
+
+Settings live in `/etc/homefin/accounts.env` (root-only; **back up
+`HOMEFIN_SECRET`**, it encrypts the profile passwords) and the database in
+`/opt/homefin/data`. Your password goes straight into the database and is never
+written to a file. Rerunning the script later updates the service and keeps the
+settings.
+
+**Docker** — follow `homefin/accounts/README.md`. For the setup above use:
 
 ```yaml
   homefin-accounts:
@@ -81,18 +96,30 @@ setup above use:
     restart: unless-stopped
 ```
 
-Then point the Cloudflare tunnel's public hostname at
-`http://homefin-accounts:8097` (instead of Jellyfin's 8096), and add the
-service's address to Jellyfin → Dashboard → Networking → **Known proxies**.
+Then, either way:
+
+* Point the Cloudflare tunnel's public hostname at the accounts service on port
+  **8097** (instead of Jellyfin's 8096): `http://localhost:8097` when
+  `cloudflared` runs on the same machine, `http://homefin-accounts:8097` in
+  Docker, otherwise `http://<server address>:8097`.
+* Jellyfin → Dashboard → Networking → **Known proxies**: add the address the
+  service reaches Jellyfin from (`127.0.0.1` on the same machine), then restart
+  Jellyfin.
+* Use the tunnel address at home too. With accounts on, Jellyfin's own port
+  (8096) doesn't serve the sign-in, and the sign-in cookie is only sent over
+  https, so `http://<server address>:8097` won't keep you signed in either.
 
 Open your Home Fin address, sign in with the admin email and password, create
-your profile, then invite everyone else from Account → Open admin.
+your profile, then invite everyone else from Account → Open admin. The Jellyfin
+TV and phone apps keep working: they sign in with **Quick Connect** (profile menu
+→ *Sign in a TV*).
 
 ## Updating and undoing
 
 ```sh
 cd /opt/homefin/src && git pull
 sudo homefin/deploy/install-web.sh --rebuild      # Jellyfin keeps running; reload the browser
+sudo homefin/deploy/install-accounts.sh           # updates the accounts service (Debian / Ubuntu)
 sudo homefin/deploy/install-web.sh --rollback     # back to the version before
 ```
 
@@ -108,4 +135,6 @@ script, Jellyfin with `--webdir`, the accounts service as front door with
 on the Home Fin sign-in, profiles, Home with live updates (websockets) through
 the front door, and update / rollback without restarting Jellyfin. Not
 rehearsed: a real Cloudflare tunnel, Docker volume mounts and the Windows
-service.
+service. `install-accounts.sh` was run end to end with systemd stubbed out (first
+install, admin sign-in through the front door, rerun as an update); on a real
+server it is the systemd unit it writes that runs the service.
