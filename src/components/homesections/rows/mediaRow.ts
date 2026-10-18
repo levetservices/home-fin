@@ -9,7 +9,7 @@ import { playTitleNow } from 'homefin/ui/play';
 import globalize from 'lib/globalize';
 
 import { attachHoverPreview } from './hoverPreview';
-import { getCardArt, getPosterUrl, getProgressPercent } from './artwork';
+import { CARD_IMAGE_WIDTH, getCardArt, getPosterUrl, getProgressPercent } from './artwork';
 
 import './rows.scss';
 
@@ -38,7 +38,7 @@ function lazyBackground(className: string, url: string) {
 }
 
 function getLandscapeCardHtml(item: BaseItemDto, index: number, apiClient: ApiClient, options: RowOptions) {
-    const art = getCardArt(item, apiClient, { width: 640, useEpisodeImages: options.useEpisodeImages });
+    const art = getCardArt(item, apiClient, { width: CARD_IMAGE_WIDTH, useEpisodeImages: options.useEpisodeImages });
     const label = escapeHtml(art.title);
     let html = `<button type="button" class="hfCard" data-index="${index}" aria-label="${label}">`;
     html += `<div ${lazyBackground('hfCard-art', art.url)}>`;

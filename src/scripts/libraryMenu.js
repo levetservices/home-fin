@@ -29,7 +29,7 @@ import { PluginType } from '../types/plugin.ts';
 import Events from '../utils/events.ts';
 import { getParameterByName } from '../utils/url.ts';
 import datetime from '../scripts/datetime';
-import { isProfileMenuEnabled, renderKidsShortcut, renderProfileButton, toggleProfileMenu } from '../homefin/accounts/profileMenu';
+import { isProfileMenuEnabled, renderDrawerProfile, renderKidsShortcut, renderProfileButton, toggleProfileMenu } from '../homefin/accounts/profileMenu';
 import { getDisplayName } from '../homefin/accounts/session';
 import { refreshBell, toggleBell } from '../homefin/ui/notifications';
 
@@ -166,13 +166,12 @@ function updateUserInHeader(user) {
         updateHeaderUserButton(null);
     }
 
-    // Home Fin profiles: the profile's avatar + caret opens the profile menu.
-    if (user?.localUser) {
-        isProfileMenuEnabled().then(enabled => {
-            if (!enabled) return;
-            renderProfileButton(headerUserButton);
-            renderKidsShortcut(headerUserButton.parentElement);
-        }).catch(err => console.error('[libraryMenu] profile menu failed', err));
+    // Netflix-style avatar + caret that opens the profile menu (Home Fin profile or any Jellyfin user).
+    if (user?.localUser && !layoutManager.tv) {
+        renderProfileButton(headerUserButton, user.localUser, user.imageUrl)
+            .then(() => isProfileMenuEnabled())
+            .then(onProfile => onProfile && renderKidsShortcut(headerUserButton.parentElement))
+            .catch(err => console.error('[libraryMenu] profile menu failed', err));
     }
 
     if (user?.localUser) {
@@ -248,10 +247,12 @@ function showSearch() {
 }
 
 function onHeaderUserButtonClick() {
-    isProfileMenuEnabled().then(enabled => {
-        if (enabled) return toggleProfileMenu(headerUserButton);
+    if (layoutManager.tv || !currentUser?.localUser) {
         Dashboard.navigate('mypreferencesmenu');
-    }).catch(err => console.error('[libraryMenu] profile menu failed', err));
+        return;
+    }
+    toggleProfileMenu(headerUserButton, currentUser.localUser, currentUser.imageUrl)
+        .catch(err => console.error('[libraryMenu] profile menu failed', err));
 }
 
 function onHeaderBellButtonClick() {
@@ -281,6 +282,8 @@ function bindMenuEvents() {
     }
 
     headerUserButton.addEventListener('click', onHeaderUserButtonClick);
+    // The wordmark goes home, as Netflix's logo does (the header nav covers keyboard users).
+    skinHeader.querySelector('.pageTitle')?.addEventListener('click', onHeaderHomeButtonClick);
     headerBellButton?.addEventListener('click', onHeaderBellButtonClick);
     headerHomeButton.addEventListener('click', onHeaderHomeButtonClick);
 
@@ -364,8 +367,10 @@ function onMainDrawerSelect() {
 
 function refreshLibraryInfoInDrawer(user) {
     let html = '';
-    html += '<div style="height:.5em;"></div>';
+    // Netflix-style menu top: who is watching (filled in below).
+    html += '<div class="hfDrawerProfile"></div>';
     html += `<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder" href="#/home"><span class="material-icons navMenuOptionIcon home" aria-hidden="true"></span><span class="navMenuOptionText">${globalize.translate('Home')}</span></a>`;
+    html += `<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder" href="#/home?tab=1"><span class="material-icons navMenuOptionIcon favorite" aria-hidden="true"></span><span class="navMenuOptionText">${globalize.translate('HeaderMyList')}</span></a>`;
 
     // placeholder for custom menu links
     html += '<div class="customMenuOptions"></div>';
@@ -405,6 +410,12 @@ function refreshLibraryInfoInDrawer(user) {
 
     // add buttons to navigation drawer
     navDrawerScrollContainer.innerHTML = html;
+
+    const drawerProfile = navDrawerScrollContainer.querySelector('.hfDrawerProfile');
+    if (drawerProfile && user.localUser) {
+        renderDrawerProfile(drawerProfile, user.localUser, user.imageUrl)
+            .catch(err => console.error('[libraryMenu] drawer profile failed', err));
+    }
 
     const btnSelectServer = navDrawerScrollContainer.querySelector('.btnSelectServer');
     if (btnSelectServer) {

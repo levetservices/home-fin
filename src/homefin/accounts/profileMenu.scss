@@ -141,3 +141,78 @@
         display: none;
     }
 }
+
+// Top of the phone menu.
+.hfDrawerProfile {
+    display: flex;
+    align-items: center;
+    gap: 0.9em;
+    padding: 1.4em 1.4em 1.2em;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+
+    &:empty {
+        display: none;
+    }
+}
+
+.hfDrawerProfile-avatar {
+    width: 2.8em;
+    height: 2.8em;
+    border-radius: 4px;
+    font-size: 1.1em;
+}
+
+.hfDrawerProfile-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25em;
+    min-width: 0;
+
+    strong {
+        overflow: hidden;
+        color: #fff;
+        font-size: 1.1em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.hfDrawerProfile-switch {
+    color: #b3b3b3;
+    font-size: 0.9em;
+    text-decoration: none;
+
+    &:hover {
+        color: #fff;
+        text-decoration: underline;
+    }
+}
+
+// Jellyfin users without a Home Fin profile: their picture, or a coloured initial.
+.hfAvatar-photo {
+    background-position: center;
+    background-size: cover;
+}
+
+.hfAvatar-initial {
+    color: #fff;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.hfProfileButton-avatar.hfAvatar-initial {
+    font-size: 1em;
+}
+
+.hfProfileMenu-who {
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    padding: 0.2em 1em 0.6em;
+    color: #fff;
+    font-weight: 700;
+
+    .hfAvatar-initial {
+        font-size: 0.95em;
+    }
+}

@@ -116,6 +116,7 @@ a,
 /* The red wordmark in place of the Jellyfin logo, on every page
    (page names are already in the nav and tabs, as on Netflix). */
 .skinHeader .pageTitle {
+    cursor: pointer;
     width: auto;
     height: auto;
     margin-left: 0.5em;
@@ -228,14 +229,27 @@ a,
 
 /* ── Side menu ────────────────────────────────────────────────────────── */
 
+/* Netflix has no sidebar on desktop: the header nav and the profile menu cover it.
+   Jellyfin's own admin pages (dashboardDocument) keep theirs. */
+@media all and (min-width: 64em) {
+    body:not(.dashboardDocument) .mainDrawerButton,
+    body:not(.dashboardDocument) .mainDrawer {
+        display: none !important;
+    }
+}
+
+/* Phones: a plain text menu, profile at the top, red bar on the current page. */
 .mainDrawer,
 .drawer-open {
-    background-color: rgba(10, 10, 10, 0.97);
+    background-color: #141414;
 }
 
 .navMenuOption {
+    padding-top: 0.75em;
+    padding-bottom: 0.75em;
     border-left: 3px solid transparent;
-    font-weight: 400;
+    font-size: 1.05em;
+    font-weight: 500;
     color: #b3b3b3;
 }
 
@@ -255,12 +269,28 @@ a,
     color: #fff;
 }
 
+body:not(.dashboardDocument) .navMenuOptionIcon {
+    display: none;
+}
+
+body:not(.dashboardDocument) .navMenuOption {
+    padding-left: 1.4em;
+}
+
+body:not(.dashboardDocument) .navMenuOptionText {
+    margin-left: 0;
+}
+
 .sidebarHeader {
     color: #737373;
     font-size: 0.8em;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+}
+
+body:not(.dashboardDocument) .sidebarHeader {
+    padding-left: 1.4em;
 }
 
 /* ── Stock Jellyfin cards (library pages, other rows) ─────────────────── */
@@ -417,6 +447,152 @@ a,
     border-color: #333;
 }
 
+/* ── Library pages ────────────────────────────────────────────────────── */
+
+/* Play all / shuffle / view / sort / filter: a quiet row of grey icons on the left. */
+.libraryPage .pageTabContent > .flex.flex-wrap-wrap:first-child {
+    justify-content: flex-start !important;
+    padding-left: 3.3%;
+    color: #b3b3b3;
+}
+
+.libraryPage .pageTabContent .paper-icon-button-light {
+    color: #b3b3b3;
+}
+
+/* Netflix has no A–Z rail; keep it for big libraries but out of the way until used. */
+.alphaPicker-fixed {
+    opacity: 0.25;
+    transition: opacity 0.2s ease;
+}
+
+.alphaPicker-fixed:hover,
+.alphaPicker-fixed:focus-within {
+    opacity: 1;
+}
+
+/* ── Search ───────────────────────────────────────────────────────────── */
+
+.searchFields .searchFieldsInner {
+    position: relative;
+    max-width: 52em;
+}
+
+.searchFields .searchfields-icon {
+    position: absolute;
+    left: 0.6em;
+    z-index: 1;
+    align-self: center;
+    margin: 0;
+    font-size: 1.6em;
+    color: #b3b3b3;
+}
+
+.searchFields .searchfields-txtSearch {
+    height: 3em;
+    padding-left: 2.8em;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 4px;
+    background: #000;
+    font-size: 1.15em;
+}
+
+.searchSuggestions .sectionTitle {
+    margin-top: 1.4em;
+    color: #808080;
+    font-size: 1em;
+    font-weight: 500;
+}
+
+.searchSuggestionsList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6em;
+    max-width: 60em;
+    margin: 0 auto;
+}
+
+.searchSuggestionsList .button-link {
+    display: inline-block;
+    padding: 0.55em 1.1em;
+    border-radius: 999px;
+    background: #2a2a2a;
+    color: var(--hf-text);
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+.searchSuggestionsList .button-link:hover {
+    background: #3d3d3d;
+    color: #fff;
+}
+
+/* ── Settings: Netflix's account page — a centred column of panels ────── */
+
+.userPreferencesPage > .padded-left,
+.userPreferencesPage .readOnlyContent,
+.userPreferencesPage form {
+    max-width: 46em;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.userPreferencesPage .headerUsername {
+    padding-left: 0 !important;
+    font-size: 2em;
+    font-weight: 700;
+}
+
+.userPreferencesPage .verticalSection {
+    margin-bottom: 1.4em;
+    padding: 0.4em 1.2em 0.8em;
+    border-radius: 10px;
+    background: var(--hf-surface);
+}
+
+.userPreferencesPage .verticalSection > .sectionTitle {
+    margin: 0.7em 0 0.3em;
+    color: #b3b3b3;
+    font-size: 0.85em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.userPreferencesPage .listItem-border {
+    display: block;
+    border-bottom: 1px solid #262626;
+    color: var(--hf-text);
+    text-decoration: none;
+}
+
+.userPreferencesPage .listItem-border:last-child {
+    border-bottom: 0;
+}
+
+.userPreferencesPage .listItem-border .listItem::after {
+    content: "chevron_right";
+    margin-left: auto;
+    color: #808080;
+    font-family: "Material Icons";
+    font-size: 1.5em;
+}
+
+.userPreferencesPage .listItem-border:hover .listItem::after {
+    color: #fff;
+}
+
+.userPreferencesPage .listItemIcon {
+    color: #b3b3b3;
+}
+
+/* No separate home icon: the wordmark goes home, as on Netflix. */
+.skinHeader .headerHomeButton {
+    display: none !important;
+}
+
 /* ── Dialogs and menus ────────────────────────────────────────────────── */
 
 .dialog,
@@ -442,43 +618,225 @@ a,
     border-radius: 4px;
 }
 
-/* ── Item detail page ─────────────────────────────────────────────────── */
+/* ── Item detail page: Netflix's title page ─────────────────────────────
+   Big artwork under the header with the title treatment, info line and a white
+   Play button bottom-left; no poster column; details in a single column below.
+   (Titles usually open in the More Info pop-up; this is "Full details".) */
 
-.detailPagePrimaryContainer,
-.detailPageSecondaryContainer,
-.noBackdropTransparency .detailPagePrimaryContainer,
-.noBackdropTransparency .detailPageSecondaryContainer {
+.itemDetailPage {
+    --hf-detail-hero: max(24em, min(82vh, 56.25vw));
+    --hf-detail-pull: 12em;
+    --hf-detail-logo: min(17vh, 8.5em);
+    --hf-detail-gutter: 4%;
+}
+
+/* The page draws its own artwork; Jellyfin's dimmed page-wide backdrop would only muddy it. */
+body:has(.itemDetailPage:not(.hide)) .backdropContainer {
+    display: none;
+}
+
+.itemDetailPage .itemBackdrop {
+    position: relative;
+    height: var(--hf-detail-hero);
+    margin-top: 0;
+    background-attachment: scroll;
+    background-position: center 20%;
+}
+
+.itemDetailPage .itemBackdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(20, 20, 20, 0.92) 0%, rgba(20, 20, 20, 0.55) 35%, rgba(20, 20, 20, 0) 65%),
+        linear-gradient(180deg, rgba(20, 20, 20, 0) 40%, var(--hf-bg) 100%);
+}
+
+/* The title treatment sits bottom-left of the artwork, just above the info. */
+.itemDetailPage .detailLogo {
+    display: block;
+    top: calc(var(--hf-detail-hero) - var(--hf-detail-pull) - var(--hf-detail-logo) - 1.4em);
+    right: auto;
+    left: var(--hf-detail-gutter);
+    z-index: 2;
+    width: min(38vw, 30em);
+    height: var(--hf-detail-logo);
+    background-position: left bottom;
+}
+
+.itemDetailPage .detailLogo.hide {
+    display: none;
+}
+
+/* With a logo, the plain-text title would repeat it. */
+.itemDetailPage:has(.detailLogo:not(.hide)) .nameContainer .parentNameLast {
+    display: none;
+}
+
+/* No poster column. */
+.itemDetailPage .detailImageContainer {
+    display: none !important;
+}
+
+.itemDetailPage .detailPagePrimaryContainer,
+.itemDetailPage .detailPageSecondaryContainer,
+.noBackdropTransparency .itemDetailPage .detailPagePrimaryContainer,
+.noBackdropTransparency .itemDetailPage .detailPageSecondaryContainer {
     background: transparent;
 }
 
-.detailRibbon,
-.layout-desktop .detailRibbon {
+.itemDetailPage .detailRibbon,
+.layout-desktop .itemDetailPage .detailRibbon,
+.layout-mobile .itemDetailPage .detailRibbon {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.2em;
+    height: auto;
+    margin-top: calc(-1 * var(--hf-detail-pull));
+    padding: 0 var(--hf-detail-gutter) !important;
     background: transparent;
 }
 
-.itemBackdrop::after {
-    background: linear-gradient(180deg, rgba(20, 20, 20, 0) 35%, rgba(20, 20, 20, 0.9) 100%);
+.itemDetailPage .infoWrapper {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 0 !important;
+}
+
+.itemDetailPage .nameContainer .itemName,
+.itemDetailPage .nameContainer .parentName {
+    margin: 0 0 0.25em;
+    font-size: clamp(1.6em, 3vw, 2.8em);
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: left;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.itemDetailPage .itemMiscInfo {
+    justify-content: flex-start;
+    color: #fff;
+    font-weight: 500;
+}
+
+.itemDetailPage .detailPageContent,
+.itemDetailPage .detailPagePrimaryContent,
+.layout-mobile .itemDetailPage .detailPageContent {
+    max-width: 75em;
+    padding-right: var(--hf-detail-gutter) !important;
+    padding-left: var(--hf-detail-gutter) !important;
+}
+
+.itemDetailPage .overview {
+    max-width: 50em;
+    color: #fff;
+    font-size: 1.15em;
+    line-height: 1.45;
+}
+
+.itemDetailPage .tagline {
+    color: #fff;
+    font-weight: 700;
+}
+
+.itemDetailPage .itemTags,
+.itemDetailPage .detailsGroupItem .label,
+.itemDetailPage .itemDetailsGroup .label {
+    color: #777;
+}
+
+.itemDetailPage .detailsGroupItem .content a {
+    color: #fff;
+}
+
+/* Buttons: Play as Netflix's white button with its label, the rest as outlined circles. */
+.mainDetailButtons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55em;
 }
 
 .mainDetailButtons .detailButton {
-    margin-right: 0.55em;
+    width: 2.9em;
+    height: 2.9em;
+    padding: 0 !important;
     border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
     background: rgba(42, 42, 42, 0.6);
+    color: #fff;
 }
 
 .mainDetailButtons .detailButton:hover {
     border-color: #fff;
 }
 
-.mainDetailButtons .btnPlay {
-    border-color: #fff;
+.mainDetailButtons .detailButton .detailButton-icon {
+    font-size: 1.5em !important;
+}
+
+.mainDetailButtons .btnPlay,
+.mainDetailButtons .btnPlay.button-submit {
+    flex-direction: row;
+    width: auto;
+    padding: 0 1.7em 0 1.2em !important;
+    border: 0;
+    border-radius: 4px;
     background: #fff;
     color: #000;
 }
 
+/* Jellyfin keeps the button's title at "Play" / "Resume". */
+.mainDetailButtons .btnPlay::after {
+    content: attr(title);
+    margin-left: 0.3em;
+    font-size: 1.15em;
+    font-weight: 700;
+}
+
 .mainDetailButtons .btnPlay:hover {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.mainDetailButtons .btnPlay .detailButton-icon {
+    font-size: 2em !important;
+}
+
+/* Phones: artwork on top, everything stacked under it. */
+@media all and (max-width: 40em) {
+    .itemDetailPage {
+        --hf-detail-hero: 62vw;
+        --hf-detail-pull: 0;
+        --hf-detail-gutter: 5%;
+    }
+
+    .itemDetailPage .itemBackdrop {
+        min-height: 13em;
+    }
+
+    .itemDetailPage .detailLogo {
+        display: none !important;
+    }
+
+    .itemDetailPage .detailRibbon,
+    .layout-desktop .itemDetailPage .detailRibbon,
+    .layout-mobile .itemDetailPage .detailRibbon {
+        margin-top: 0.4em;
+    }
+
+    .itemDetailPage:has(.detailLogo:not(.hide)) .nameContainer .parentNameLast {
+        display: block;
+    }
+
+    .mainDetailButtons .btnPlay {
+        flex: 1 0 100%;
+        justify-content: center;
+        height: 2.8em;
+        border-radius: 4px;
+    }
 }
 
 .playstatebutton-icon-played,

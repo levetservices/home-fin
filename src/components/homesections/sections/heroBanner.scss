@@ -16,6 +16,18 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     color: #fff;
 }
 
+// Placeholder while the recommender picks the title.
+.homeHero.is-loading {
+    background: linear-gradient(100deg, #181818 30%, #222 50%, #181818 70%) 0 0 / 300% 100%;
+    animation: hf-hero-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes hf-hero-shimmer {
+    to {
+        background-position: -150% 0;
+    }
+}
+
 .homeHero-art {
     position: absolute;
     inset: 0;
@@ -212,6 +224,7 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .homeHero.is-loading,
     .homeHero-art,
     .homeHero-content.is-entering > *,
     .homeHero-reasons {

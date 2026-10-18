@@ -17,8 +17,9 @@ export type { HomePlan, PlannedRow } from './plan';
 const TASTE_TTL_MS = 30 * 60 * 1000;
 const CATALOGUE_TTL_MS = 10 * 60 * 1000;
 const HISTORY_LIMIT = 300;
-const CATALOGUE_TOP_RATED = 1200;
-const CATALOGUE_NEWEST = 400;
+// Each title carries its cast list, so keep this modest for big libraries on small servers.
+const CATALOGUE_TOP_RATED = 800;
+const CATALOGUE_NEWEST = 200;
 const SEED_COUNT = 3;
 const SIMILAR_LIMIT = 16;
 const TASTE_KEY = 'homefin_taste_v1_';

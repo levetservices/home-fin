@@ -52,6 +52,17 @@ fi
 command -v node >/dev/null || { echo "Node.js 20+ is needed to build Home Fin." >&2; exit 1; }
 
 if $REBUILD || [ ! -f "$REPO/dist/index.html" ]; then
+    # The build needs about 3.5 GB of memory (RAM + swap); with less, Linux kills it part-way.
+    MEM_KB=$(awk '/^(MemTotal|SwapTotal):/ { total += $2 } END { print total + 0 }' /proc/meminfo 2>/dev/null || echo 0)
+    if [ "$MEM_KB" -gt 0 ] && [ "$MEM_KB" -lt 3500000 ]; then
+        cat >&2 <<EOM
+This machine has $((MEM_KB / 1024)) MB of memory (RAM + swap); building Home Fin needs about 3500 MB.
+Add some swap first, then run this again:
+  fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+Nothing has been changed.
+EOM
+        exit 1
+    fi
     echo "Building Home Fin (a few minutes)…"
     (cd "$REPO" && npm ci --no-audit --no-fund && npm run build:production)
 fi

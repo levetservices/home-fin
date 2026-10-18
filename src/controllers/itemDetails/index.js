@@ -554,8 +554,10 @@ function reloadFromItem(instance, page, params, item, user) {
 
     renderLogo(page, item, apiClient);
 
-    // Render the mobile header backdrop
-    if (layoutManager.mobile) {
+    // Render the mobile header backdrop (and the Home Fin title-page artwork, for themes that
+    // style the page as one: they define --hf-detail-hero)
+    const themeWantsHero = !layoutManager.tv && !!getComputedStyle(page).getPropertyValue('--hf-detail-hero');
+    if (layoutManager.mobile || themeWantsHero) {
         renderHeaderBackdrop(page, item, apiClient);
     }
 

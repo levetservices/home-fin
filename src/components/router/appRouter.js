@@ -37,6 +37,8 @@ export const PUBLIC_PATHS = [
     '/homefin/admin'
 ];
 
+const MORE_INFO_TYPES = new Set(['Movie', 'Series', 'Season', 'Episode']);
+
 class AppRouter {
     forcedLogoutMsg;
     msgTimeout;
@@ -157,6 +159,15 @@ class AppRouter {
         } else {
             if (arguments.length === 2) {
                 options = arguments[1];
+            }
+
+            // Home Fin: films and series open Netflix's More Info pop-up over the current page
+            // (as clicking a title does on netflix.com); its "Full details" asks for the page.
+            if (!options?.fullDetails && MORE_INFO_TYPES.has(item.Type) && !document.documentElement.classList.contains('layout-tv')) {
+                import('homefin/moreInfo/moreInfo').then(({ openMoreInfo }) => {
+                    openMoreInfo(item, ServerConnections.getApiClient(item.ServerId) || ServerConnections.currentApiClient());
+                }).catch(err => console.error('[AppRouter] More Info failed', err));
+                return;
             }
 
             const url = this.getRouteUrl(item, options);

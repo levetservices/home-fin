@@ -18,7 +18,8 @@ browser ─► Cloudflare tunnel ─► homefin-accounts :8097 ─┬─ /homefi
 
 ## 1. Build and install the web client
 
-On the server (needs git and Node.js 20+; the build takes a few minutes):
+On the server (needs git, Node.js 20+ and about 3.5 GB of memory including swap; the build
+takes a few minutes; the script stops with the swap commands if there isn't enough):
 
 ```sh
 git clone -b home-fin https://github.com/levetservices/home-fin.git /opt/homefin/src

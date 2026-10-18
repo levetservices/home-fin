@@ -3,6 +3,7 @@ import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models/base
 import escapeHtml from 'escape-html';
 import type { ApiClient } from 'jellyfin-apiclient';
 
+import { CARD_IMAGE_WIDTH, scaledImageUrl } from 'components/homesections/rows/artwork';
 import { openMoreInfo } from 'homefin/moreInfo/moreInfo';
 
 import { RECENT_DAYS, getRibbon } from './badges';
@@ -66,10 +67,9 @@ async function fetchArrivals(apiClient: ApiClient) {
 }
 
 function art(item: BaseItemDto, apiClient: ApiClient) {
-    const tag = item.BackdropImageTags?.[0];
-    if (tag && item.Id) return apiClient.getScaledImageUrl(item.Id, { type: 'Backdrop', maxWidth: 240, tag });
-    if (item.ImageTags?.Primary && item.Id) return apiClient.getScaledImageUrl(item.Id, { type: 'Primary', maxWidth: 240, tag: item.ImageTags.Primary });
-    return '';
+    // Card-sized, so these come from the same cache as the cards on Home.
+    return scaledImageUrl(apiClient, item.Id, 'Backdrop', item.BackdropImageTags?.[0], CARD_IMAGE_WIDTH)
+        || scaledImageUrl(apiClient, item.Id, 'Primary', item.ImageTags?.Primary, CARD_IMAGE_WIDTH);
 }
 
 function close() {

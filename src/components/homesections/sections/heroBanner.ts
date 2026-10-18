@@ -8,7 +8,7 @@ import { openMoreInfo } from 'homefin/moreInfo/moreInfo';
 import { ratingBadgeHtml } from 'homefin/ui/rating';
 import globalize from 'lib/globalize';
 
-import { formatRuntime } from '../rows/artwork';
+import { LOGO_IMAGE_WIDTH, formatRuntime, scaledImageUrl, wideImageWidth } from '../rows/artwork';
 
 import './heroBanner.scss';
 
@@ -87,7 +87,7 @@ function getContentHtml({ item, reasons }: FeaturedTitle, apiClient: ApiClient) 
     let html = '<div class="homeHero-content">';
 
     if (logoTag && item.Id) {
-        const logoUrl = apiClient.getScaledImageUrl(item.Id, { type: 'Logo', maxWidth: 900, tag: logoTag });
+        const logoUrl = scaledImageUrl(apiClient, item.Id, 'Logo', logoTag, LOGO_IMAGE_WIDTH * 2);
         html += `<h1 class="homeHero-title homeHero-title-logo"><img class="homeHero-logo" src="${logoUrl}" alt="${title}" /></h1>`;
     } else {
         html += `<h1 class="homeHero-title">${title}</h1>`;
@@ -110,10 +110,7 @@ function getContentHtml({ item, reasons }: FeaturedTitle, apiClient: ApiClient) 
 }
 
 function getBackdropUrl(item: BaseItemDto, apiClient: ApiClient) {
-    const tag = item.BackdropImageTags?.[0];
-    if (!tag || !item.Id) return '';
-    const width = Math.min(2560, Math.round(window.innerWidth * (window.devicePixelRatio || 1)));
-    return apiClient.getScaledImageUrl(item.Id, { type: 'Backdrop', index: 0, maxWidth: width, tag });
+    return scaledImageUrl(apiClient, item.Id, 'Backdrop', item.BackdropImageTags?.[0], wideImageWidth());
 }
 
 /**
@@ -121,7 +118,23 @@ function getBackdropUrl(item: BaseItemDto, apiClient: ApiClient) {
  * artwork, title treatment, info line, synopsis, actions and why it was picked.
  * `featured` comes from the recommender; without one a random unwatched title is shown.
  */
+/** Sit just under the header whatever padding the page reserves for tab rows Home doesn't show. */
+function fitUnderHeader(elem: HTMLElement) {
+    elem.style.marginTop = '';
+    const header = document.querySelector('.skinHeader');
+    if (layoutManager.tv || !header || !elem.offsetParent) return;
+    const top = elem.getBoundingClientRect().top + window.scrollY;
+    const wanted = header.getBoundingClientRect().bottom + HEADER_GAP_PX;
+    const current = parseFloat(getComputedStyle(elem).marginTop) || 0;
+    elem.style.marginTop = `${current + wanted - top}px`;
+}
+
 export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient, featured?: Promise<FeaturedTitle | null>) {
+    // Hold the billboard's place while the recommender works, so the rows don't jump down later.
+    elem.classList.remove('hide');
+    elem.classList.add('homeHero', 'is-loading');
+    fitUnderHeader(elem);
+
     let pick: FeaturedTitle | null = null;
     try {
         pick = (await featured) || await fetchFallbackTitle(apiClient);
@@ -129,6 +142,7 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient, fe
         console.error('[HomeHero] failed to load the featured title', err);
     }
 
+    elem.classList.remove('is-loading');
     if (!pick || !elem.isConnected) {
         elem.innerHTML = '';
         elem.classList.add('hide');
@@ -162,24 +176,15 @@ export async function loadHeroBanner(elem: HeroElement, apiClient: ApiClient, fe
         }
     });
 
-    // Sit just under the header whatever padding the page reserves for tab rows Home doesn't show.
-    const fitUnderHeader = () => {
-        elem.style.marginTop = '';
-        const header = document.querySelector('.skinHeader');
-        if (layoutManager.tv || !header || !elem.offsetParent) return;
-        const top = elem.getBoundingClientRect().top + window.scrollY;
-        const wanted = header.getBoundingClientRect().bottom + HEADER_GAP_PX;
-        const current = parseFloat(getComputedStyle(elem).marginTop) || 0;
-        elem.style.marginTop = `${current + wanted - top}px`;
-    };
+    const onResize = () => fitUnderHeader(elem);
 
     const controller: HeroController = {
         pause() {
-            window.removeEventListener('resize', fitUnderHeader);
+            window.removeEventListener('resize', onResize);
         },
         resume() {
-            window.addEventListener('resize', fitUnderHeader);
-            fitUnderHeader();
+            window.addEventListener('resize', onResize);
+            onResize();
         },
         destroy() {
             controller.pause();

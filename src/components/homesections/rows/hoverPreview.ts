@@ -8,7 +8,7 @@ import { playTitleNow } from 'homefin/ui/play';
 import { ratingBadgeHtml } from 'homefin/ui/rating';
 import globalize from 'lib/globalize';
 
-import { formatRuntime, getCardArt, getProgressPercent, getRemainingTicks } from './artwork';
+import { CARD_IMAGE_WIDTH, formatRuntime, getCardArt, getProgressPercent, getRemainingTicks } from './artwork';
 
 /** Hover must settle on a card this long before the preview opens (as on Netflix). */
 const OPEN_DELAY_MS = 450;
@@ -53,7 +53,8 @@ function getMetaHtml(item: BaseItemDto) {
 }
 
 function getPreviewHtml(item: BaseItemDto, apiClient: ApiClient) {
-    const art = getCardArt(item, apiClient, { width: 960 });
+    // The card's own image size, so the preview opens from cache instead of a new resize.
+    const art = getCardArt(item, apiClient, { width: CARD_IMAGE_WIDTH });
     const isFavourite = !!item.UserData?.IsFavorite;
     const isLiked = item.UserData?.Likes === true;
     const isDisliked = item.UserData?.Likes === false;

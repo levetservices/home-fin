@@ -1,11 +1,15 @@
-// Netflix-style profile menu for the header (plain DOM: libraryMenu.js renders the header).
+// Netflix-style profile button and menu for the header (plain DOM: libraryMenu.js renders the
+// header). Home Fin profiles show their avatar and profile switching; plain Jellyfin users get
+// the same look with their picture (or initial) and the same menu minus the account items.
+import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto';
 import escapeHtml from 'escape-html';
 
 import { ServerConnections } from 'lib/jellyfin-apiclient';
+import Dashboard from 'utils/dashboard';
 
 import { accountsApi, getAvatars, isAccountsEnabled, type Profile } from './api';
 import { avatarHtml, findAvatar } from './avatar';
-import { activateProfile, getCurrentProfile, signOutEverywhere } from './session';
+import { activateProfile, getCurrentProfile } from './session';
 
 import './profileMenu.scss';
 
@@ -22,7 +26,7 @@ function getProfiles() {
     return profilesPromise;
 }
 
-/** True when the header should show the Home Fin profile button and menu. */
+/** True when the browser is on a Home Fin profile (avatar, profile switching, Kids shortcut). */
 export function isProfileMenuEnabled() {
     // A stale profile (e.g. after signing in through Jellyfin's own page) doesn't count.
     const profile = getCurrentProfile();
@@ -30,17 +34,45 @@ export function isProfileMenuEnabled() {
     return isAccountsEnabled().catch(() => false);
 }
 
-/** Avatar + caret for the header user button. */
-export async function renderProfileButton(button: HTMLElement) {
-    const profile = getCurrentProfile();
-    if (!profile) return;
-    const avatar = findAvatar(await getAvatars(), profile.avatar);
+const INITIAL_COLOURS = ['#e50914', '#2f6fdb', '#1f9d55', '#d97706', '#7c3aed', '#0e9aa7', '#c2185b'];
+
+/** A coloured square with the user's initial, for Jellyfin users without a picture. */
+function initialAvatarHtml(name: string, className: string) {
+    let hash = 0;
+    for (const char of name) hash = Math.trunc(hash * 31 + char.charCodeAt(0)) % 1000003;
+    const colour = INITIAL_COLOURS[Math.abs(hash) % INITIAL_COLOURS.length];
+    const initial = escapeHtml((name.trim()[0] || '?').toUpperCase());
+    return `<span class="${className} hfAvatar-initial" style="background:${colour}" aria-hidden="true">${initial}</span>`;
+}
+
+/** The avatar for whoever is signed in: Home Fin profile, Jellyfin picture, or initial. */
+async function currentAvatarHtml(className: string, user?: UserDto | null, imageUrl?: string | null) {
+    const profile = (await isProfileMenuEnabled()) ? getCurrentProfile() : null;
+    if (profile) return avatarHtml(findAvatar(await getAvatars(), profile.avatar), `hfAvatar ${className}`);
+    if (imageUrl) return `<span class="hfAvatar hfAvatar-photo ${className}" style="background-image:url('${escapeHtml(imageUrl)}')" aria-hidden="true"></span>`;
+    return initialAvatarHtml(user?.Name || '', `hfAvatar ${className}`);
+}
+
+/** Avatar + caret for the header user button (Netflix style for every user). */
+export async function renderProfileButton(button: HTMLElement, user?: UserDto | null, imageUrl?: string | null) {
+    const profile = (await isProfileMenuEnabled()) ? getCurrentProfile() : null;
     button.classList.add('hfProfileButton');
-    button.innerHTML = avatarHtml(avatar, 'hfAvatar hfProfileButton-avatar')
+    button.classList.remove('headerUserButtonRound');
+    button.innerHTML = await currentAvatarHtml('hfProfileButton-avatar', user, imageUrl)
         + '<span class="material-icons hfProfileButton-caret" aria-hidden="true">arrow_drop_down</span>';
-    button.title = profile.name;
+    button.title = profile?.name || user?.Name || '';
     button.setAttribute('aria-haspopup', 'menu');
     button.setAttribute('aria-expanded', 'false');
+}
+
+/** Top of the phone menu: avatar, name and (on a Home Fin profile) Switch Profiles. */
+export async function renderDrawerProfile(container: HTMLElement, user?: UserDto | null, imageUrl?: string | null) {
+    const profile = (await isProfileMenuEnabled()) ? getCurrentProfile() : null;
+    const name = escapeHtml(profile?.name || user?.Name || '');
+    container.innerHTML = await currentAvatarHtml('hfDrawerProfile-avatar', user, imageUrl)
+        + `<span class="hfDrawerProfile-text"><strong>${name}</strong>`
+        + (profile ? '<a class="hfDrawerProfile-switch" href="#/homefin/profiles">Switch Profiles</a>' : '')
+        + '</span>';
 }
 
 /** A "Kids" link in the header that switches to the account's kids profile (Netflix has one). */
@@ -100,7 +132,9 @@ const MENU_ROUTES: Record<string, string> = {
     manage: '#/homefin/profiles/manage',
     account: '#/homefin/account',
     tv: '#/quickconnect',
-    settings: '#/mypreferencesmenu'
+    settings: '#/mypreferencesmenu',
+    dashboard: '#/dashboard',
+    metadata: '#/metadata'
 };
 
 function item(action: string, icon: string, label: string, extra = '') {
@@ -108,12 +142,16 @@ function item(action: string, icon: string, label: string, extra = '') {
         + `<span class="material-icons" aria-hidden="true">${icon}</span><span>${escapeHtml(label)}</span></button>`;
 }
 
-async function buildMenu() {
-    const current = getCurrentProfile();
-    const [profiles, avatars] = await Promise.all([getProfiles(), getAvatars()]);
+async function buildMenu(user?: UserDto | null, imageUrl?: string | null) {
+    const onProfile = await isProfileMenuEnabled();
+    const current = onProfile ? getCurrentProfile() : null;
+    const [profiles, avatars] = onProfile ? await Promise.all([getProfiles(), getAvatars()]) : [[], []];
     const others = profiles.filter(p => p.id !== current?.id);
 
     let html = '<div class="hfProfileMenu-arrow" aria-hidden="true"></div>';
+    if (!onProfile && user?.Name) {
+        html += `<div class="hfProfileMenu-who">${await currentAvatarHtml('hfProfileMenu-avatar', user, imageUrl)}<span>${escapeHtml(user.Name)}</span></div>`;
+    }
     html += others.map(p => (
         `<button type="button" class="hfProfileMenu-item hfProfileMenu-profile" role="menuitem" data-action="switch" data-id="${p.id}">`
         + avatarHtml(findAvatar(avatars, p.avatar), 'hfAvatar hfProfileMenu-avatar')
@@ -121,23 +159,30 @@ async function buildMenu() {
         + (p.locked ? '<span class="material-icons hfProfileMenu-lock" aria-label="Locked">lock</span>' : '')
         + '</button>'
     )).join('');
-    html += item('manage', 'edit', 'Manage Profiles');
-    html += item('account', 'person_outline', 'Account');
+    if (onProfile) {
+        html += item('manage', 'edit', 'Manage Profiles');
+        html += item('account', 'person_outline', 'Account');
+    }
     html += item('tv', 'tv', 'Sign in a TV');
     html += item('settings', 'settings', 'Settings');
+    // What Jellyfin's sidebar used to hold for administrators.
+    if (user?.Policy?.IsAdministrator) {
+        html += item('dashboard', 'dashboard', 'Dashboard');
+        html += item('metadata', 'edit_note', 'Metadata Manager');
+    }
     html += '<div class="hfProfileMenu-divider" role="separator"></div>';
-    html += '<button type="button" class="hfProfileMenu-signout" role="menuitem" data-action="signout">Sign out of Home Fin</button>';
+    html += `<button type="button" class="hfProfileMenu-signout" role="menuitem" data-action="signout">${onProfile ? 'Sign out of Home Fin' : 'Sign out'}</button>`;
     return { html, profiles: others };
 }
 
 /** Open (or close) the menu under the header user button. */
-export async function toggleProfileMenu(button: HTMLElement) {
+export async function toggleProfileMenu(button: HTMLElement, user?: UserDto | null, imageUrl?: string | null) {
     if (menu) {
         closeProfileMenu();
         return;
     }
     anchor = button;
-    const { html, profiles } = await buildMenu();
+    const { html, profiles } = await buildMenu(user, imageUrl);
 
     menu = document.createElement('div');
     menu.className = 'hfProfileMenu';
@@ -160,7 +205,8 @@ export async function toggleProfileMenu(button: HTMLElement) {
         }
         closeProfileMenu();
         if (action === 'signout') {
-            signOutEverywhere().catch(err => console.error('[Home Fin] sign out failed', err));
+            // Signs out of Home Fin too when accounts are on.
+            Dashboard.logout();
         } else if (action && MENU_ROUTES[action]) {
             window.location.hash = MENU_ROUTES[action];
         }

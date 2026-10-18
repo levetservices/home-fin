@@ -5,6 +5,7 @@ import type { BaseItemPerson } from '@jellyfin/sdk/lib/generated-client/models/b
 import escapeHtml from 'escape-html';
 import type { ApiClient } from 'jellyfin-apiclient';
 
+import { CARD_IMAGE_WIDTH, LOGO_IMAGE_WIDTH, scaledImageUrl } from 'components/homesections/rows/artwork';
 import { appRouter } from 'components/router/appRouter';
 import { forgetTaste, getMoreLikeThis } from 'homefin/recs';
 import { ratingBadgeHtml } from 'homefin/ui/rating';
@@ -41,7 +42,7 @@ function minutes(ticks?: number | null) {
 }
 
 function image(apiClient: ApiClient, id: string | null | undefined, type: string, tag: string | null | undefined, maxWidth: number) {
-    return id && tag ? apiClient.getScaledImageUrl(id, { type, tag, maxWidth, quality: 90 }) : '';
+    return scaledImageUrl(apiClient, id, type, tag, maxWidth);
 }
 
 function backdropUrl(item: BaseItemDto, apiClient: ApiClient, width: number) {
@@ -74,7 +75,7 @@ function iconButton(action: string, icon: string, label: string, extra = '') {
 // ── sections ─────────────────────────────────────────────────────────────
 
 function heroHtml(item: BaseItemDto, apiClient: ApiClient) {
-    const logo = image(apiClient, item.Id, 'Logo', item.ImageTags?.Logo, 700);
+    const logo = image(apiClient, item.Id, 'Logo', item.ImageTags?.Logo, LOGO_IMAGE_WIDTH);
     const title = escapeHtml(item.Name || '');
     const resume = item.Type !== 'Series' && item.UserData?.PlaybackPositionTicks;
     const isFavourite = !!item.UserData?.IsFavorite;
@@ -156,7 +157,7 @@ function aboutHtml(item: BaseItemDto) {
 }
 
 function episodeHtml(episode: BaseItemDto, index: number, series: BaseItemDto, apiClient: ApiClient) {
-    const still = image(apiClient, episode.Id, 'Primary', episode.ImageTags?.Primary, 400) || backdropUrl(series, apiClient, 400);
+    const still = image(apiClient, episode.Id, 'Primary', episode.ImageTags?.Primary, CARD_IMAGE_WIDTH) || backdropUrl(series, apiClient, CARD_IMAGE_WIDTH);
     const progress = episode.UserData?.PlayedPercentage;
     let html = `<li><button type="button" class="hfInfo-episode" data-action="episode" data-index="${index}">`;
     html += `<span class="hfInfo-episodeNumber">${episode.IndexNumber ?? ''}</span>`;
@@ -172,7 +173,7 @@ function episodeHtml(episode: BaseItemDto, index: number, series: BaseItemDto, a
 }
 
 function similarHtml(item: BaseItemDto, index: number, apiClient: ApiClient) {
-    const art = backdropUrl(item, apiClient, 480);
+    const art = backdropUrl(item, apiClient, CARD_IMAGE_WIDTH);
     const isFavourite = !!item.UserData?.IsFavorite;
     let html = '<li class="hfInfo-similar">';
     html += `<button type="button" class="hfInfo-similarArt" data-action="similar" data-index="${index}" style="background-image:url('${art}')" aria-label="${escapeHtml(item.Name || '')}">`;
@@ -396,7 +397,7 @@ function onClick(e: MouseEvent) {
         case 'full':
             e.preventDefault();
             closeMoreInfo();
-            appRouter.showItem(item);
+            appRouter.showItem(item, { fullDetails: true });
             break;
         default:
             break;
@@ -425,7 +426,7 @@ export function closeMoreInfo() {
 /** Open the pop-up for a title (episodes and seasons show their series). */
 export function openMoreInfo(item: BaseItemDto, apiClient: ApiClient) {
     if (!item.Type || !SUPPORTED_TYPES.has(item.Type)) {
-        appRouter.showItem(item);
+        appRouter.showItem(item, { fullDetails: true });
         return;
     }
 
@@ -450,7 +451,7 @@ export function openMoreInfo(item: BaseItemDto, apiClient: ApiClient) {
         // Fall back to Jellyfin's own page rather than leaving an empty pop-up.
         if (current === state) {
             closeMoreInfo();
-            appRouter.showItem(item);
+            appRouter.showItem(item, { fullDetails: true });
         }
     });
 }
