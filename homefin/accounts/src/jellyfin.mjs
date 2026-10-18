@@ -51,15 +51,15 @@ export function createJellyfinClient({ url, apiKey, fetchImpl = fetch }) {
         /** Admin password reset: sets a new password without the old one. */
         setPassword: (id, password) => call(`/Users/${encodeURIComponent(id)}/Password`, { method: 'POST', body: { NewPw: password } }),
 
-        /** Hide the user from the login screen and apply the maturity ceiling. */
-        async applyProfilePolicy(id, maturity) {
+        /** Hide the user from the login screen and apply the maturity ceiling (and the account's disabled state). */
+        async applyProfilePolicy(id, maturity, { disabled = false } = {}) {
             const user = await call(`/Users/${encodeURIComponent(id)}`);
             const rating = MATURITY_RATINGS[maturity] ?? null;
             const policy = {
                 ...user.Policy,
                 IsHidden: true,
                 IsAdministrator: false,
-                IsDisabled: false,
+                IsDisabled: disabled,
                 EnableContentDeletion: false,
                 EnableRemoteAccess: true,
                 MaxParentalRating: rating,
@@ -67,6 +67,12 @@ export function createJellyfinClient({ url, apiKey, fetchImpl = fetch }) {
             };
             if (rating === null) delete policy.MaxParentalRating;
             await call(`/Users/${encodeURIComponent(id)}/Policy`, { method: 'POST', body: policy });
+        },
+
+        /** Turn a user on or off; Jellyfin rejects a disabled user's existing tokens straight away. */
+        async setDisabled(id, disabled) {
+            const user = await call(`/Users/${encodeURIComponent(id)}`);
+            await call(`/Users/${encodeURIComponent(id)}/Policy`, { method: 'POST', body: { ...user.Policy, IsDisabled: !!disabled } });
         },
 
         /** Sign in as a profile's Jellyfin user on behalf of the person's own device. */

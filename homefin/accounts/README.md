@@ -41,6 +41,7 @@ No npm packages, just Node 22.5+ (it uses the built-in `node:sqlite`).
          HOMEFIN_ADMIN_PASSWORD: <pick one>
          HOMEFIN_PUBLIC_URL: https://tv.example.com
          PROXY_JELLYFIN: "true"
+         TRUST_PROXY: "true"   # only reachable through your tunnel / proxy
        volumes:
          - ./homefin-data:/data
        ports:
@@ -53,6 +54,10 @@ No npm packages, just Node 22.5+ (it uses the built-in `node:sqlite`).
    video, websockets) straight to Jellyfin. In Jellyfin, add the service's
    address under Dashboard → Networking → **Known proxies** so Jellyfin still
    sees real client IPs.
+
+   Set `TRUST_PROXY=true` when the service is only reachable through that
+   tunnel / proxy (don't publish port 8097 to the internet as well). Sign-in
+   limits then apply per visitor rather than to everyone at once.
 
    Prefer to keep your current proxy pointing at Jellyfin? Set
    `PROXY_JELLYFIN=false` and add one rule that sends `/homefin-api/*` to
@@ -85,6 +90,15 @@ Any profile can have a 4-digit PIN (Manage Profiles → the profile → *Profile
 Lock*). Forgot it? *Forgot PIN?* on the PIN screen asks for the account
 password instead, then lets you change or remove the PIN.
 
+## Taking access away
+
+* **Disable** an account (Admin → Accounts) and every TV, phone and browser
+  watching as its profiles is signed out straight away; enabling it again
+  lets them sign back in.
+* A **password change** (by the member, or an admin reset) also signs every
+  device out of that account's profiles.
+* **Delete** removes the account, its profiles and their watch history.
+
 ## TVs and phone apps
 
 Profiles don't have a password you can type into the Jellyfin TV or phone apps.
@@ -102,6 +116,7 @@ the profile menu → *Sign in a TV* and enter the code.
 | `PORT` / `HOST` | `8097` / `0.0.0.0` | |
 | `API_PATH` | `/homefin-api` | must match `homefinAccounts.apiPath` |
 | `PROXY_JELLYFIN` | `false` | front-door mode |
+| `TRUST_PROXY` | `false` | visitor address from `X-Forwarded-For` (behind a tunnel / proxy only) |
 | `HOMEFIN_PUBLIC_URL` | | `https://…` turns on `Secure` cookies |
 | `HOMEFIN_COOKIE_SECURE` | from public URL | force `true` / `false` |
 | `HOMEFIN_SERVER_NAME` | `Home Fin` | shown on sign-in pages |

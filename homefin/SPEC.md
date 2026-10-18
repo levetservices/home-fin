@@ -119,8 +119,16 @@ Jellyfin user for a profile:
   profile or change it.
 * **Account boundary**: every profile route loads the profile *by id and
   account id*; a profile from another account is a 404, never a 403.
-* **Rate limits**: sign-in and PIN attempts limited per IP and per account
-  (10/15 min), invite acceptance per IP.
+* **Rate limits** (per 15 min): sign-in 10 per address + email, 30 per
+  address, 50 per email, so one visitor can't lock the household out; PINs 10
+  per address + profile; invites per address. Behind a tunnel or reverse
+  proxy set `TRUST_PROXY=true` so "address" is the visitor's (last
+  `X-Forwarded-For` hop), not the proxy's. Without it, forwarding headers from
+  visitors are also not passed on to Jellyfin.
+* **Cutting off access**: disabling an account disables its profiles' Jellyfin
+  users; disabling it, an admin password reset, or the member changing their
+  password also rotates every profile's Jellyfin password, which makes
+  Jellyfin drop all existing tokens (TVs, phones, browsers).
 * **CSRF**: state-changing routes require `Content-Type: application/json` and
   a matching `Origin` (when present), on top of SameSite cookies.
 * **Admin key** is read from env (`JELLYFIN_API_KEY`) and only used

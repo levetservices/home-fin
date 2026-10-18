@@ -6,6 +6,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import { createApp } from '../src/app.mjs';
 import { decrypt, encrypt, hashSecret, verifySecret } from '../src/crypto.mjs';
 import { openDatabase } from '../src/db.mjs';
+import { clientIp } from '../src/http.mjs';
 import { createJellyfinClient } from '../src/jellyfin.mjs';
 
 // ── fake Jellyfin ─────────────────────────────────────────────────────────
@@ -121,7 +122,8 @@ beforeEach(async () => {
     fake.state.played.clear();
     store = openDatabase(':memory:');
     const jellyfin = createJellyfinClient({ url: jellyfinUrl, apiKey: 'test-key' });
-    const handle = createApp({ store, jellyfin, key });
+    // As deployed behind a tunnel: visitor addresses come from X-Forwarded-For.
+    const handle = createApp({ store, jellyfin, key, options: { trustProxy: true } });
     api = createServer((req, res) => handle(req, res, new URL(req.url, 'http://x').pathname));
     apiUrl = await listen(api);
 });
@@ -172,6 +174,79 @@ describe('sign in', () => {
             body: '{}'
         });
         assert.equal(cross.status, 403);
+    });
+});
+
+describe('visitor addresses and sign-in limits', () => {
+    it('only believes X-Forwarded-For when told the proxy is trusted', () => {
+        const req = { socket: { remoteAddress: '127.0.0.1' }, headers: { 'x-forwarded-for': '6.6.6.6, 203.0.113.9', 'cf-connecting-ip': '7.7.7.7' } };
+        assert.equal(clientIp(req), '127.0.0.1');
+        // The proxy appends the visitor last; anything earlier (or a CF header) could be forged.
+        assert.equal(clientIp(req, true), '203.0.113.9');
+        assert.equal(clientIp({ socket: { remoteAddress: '127.0.0.1' }, headers: {} }, true), '127.0.0.1');
+    });
+
+    it('stops one visitor guessing without locking everyone else out', async () => {
+        store.createAccount({ email: 'owner@example.com', name: 'Owner', passwordHash: await hashSecret('correct horse') });
+        const attacker = client();
+        const from = ip => ({ 'X-Forwarded-For': ip });
+        for (let i = 0; i < 10; i++) {
+            assert.equal((await attacker('POST', '/auth/login', { email: 'owner@example.com', password: 'wrong guess' }, from('203.0.113.9'))).status, 401);
+        }
+        assert.equal((await attacker('POST', '/auth/login', { email: 'owner@example.com', password: 'correct horse' }, from('203.0.113.9'))).status, 429);
+        // The owner, somewhere else, still gets in.
+        const owner = client();
+        assert.equal((await owner('POST', '/auth/login', { email: 'owner@example.com', password: 'correct horse' }, from('198.51.100.7'))).status, 200);
+    });
+
+    it('caps how many emails one visitor can try', async () => {
+        const call = client();
+        for (let i = 0; i < 30; i++) {
+            assert.equal((await call('POST', '/auth/login', { email: `nobody${i}@example.com`, password: 'x' }, { 'X-Forwarded-For': '203.0.113.50' })).status, 401);
+        }
+        assert.equal((await call('POST', '/auth/login', { email: 'another@example.com', password: 'x' }, { 'X-Forwarded-For': '203.0.113.50' })).status, 429);
+    });
+});
+
+describe('cutting off access', () => {
+    async function accountWithProfiles() {
+        const admin = await createAccount('admin@example.com', { admin: true });
+        const member = await createAccount('member@example.com');
+        await member.call('POST', '/profiles', { name: 'One' });
+        await member.call('POST', '/profiles', { name: 'Two' });
+        const users = () => [...fake.state.users.values()];
+        return { admin, member, users };
+    }
+
+    it('disabling an account disables its profiles in Jellyfin and signs their devices out', async () => {
+        const { admin, member, users } = await accountWithProfiles();
+        const before = users().map(u => u.password);
+        assert.equal((await admin.call('PATCH', `/admin/accounts/${member.id}`, { disabled: true })).status, 200);
+        assert.ok(users().every(u => u.Policy.IsDisabled === true), 'Jellyfin users disabled');
+        assert.ok(users().every((u, i) => u.password !== before[i]), 'Jellyfin passwords rotated (drops their tokens)');
+        assert.equal((await member.call('GET', '/me')).status, 401);
+
+        assert.equal((await admin.call('PATCH', `/admin/accounts/${member.id}`, { disabled: false })).status, 200);
+        assert.ok(users().every(u => u.Policy.IsDisabled === false), 'Jellyfin users enabled again');
+        // Signing in again still works: the service knows the new passwords.
+        const again = client();
+        assert.equal((await again('POST', '/auth/login', { email: 'member@example.com', password: 'correct horse' })).status, 200);
+        const profile = (await again('GET', '/me')).data.profiles[0];
+        assert.equal((await again('POST', `/profiles/${profile.id}/session`, { device })).status, 200);
+    });
+
+    it('a password change, by the member or an admin, signs every profile device out', async () => {
+        const { admin, member, users } = await accountWithProfiles();
+        let before = users().map(u => u.password);
+        const changed = await member.call('PATCH', '/me', { newPassword: 'new password 1', currentPassword: 'correct horse' });
+        assert.equal(changed.status, 200);
+        assert.ok(users().every((u, i) => u.password !== before[i]));
+        const profile = changed.data.profiles[0];
+        assert.equal((await member.call('POST', `/profiles/${profile.id}/session`, { device })).status, 200);
+
+        before = users().map(u => u.password);
+        assert.equal((await admin.call('PATCH', `/admin/accounts/${member.id}`, { password: 'reset password 2' })).status, 200);
+        assert.ok(users().every((u, i) => u.password !== before[i]));
     });
 });
 

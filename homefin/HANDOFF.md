@@ -54,6 +54,26 @@ All three are built, pushed and checked in a real browser against Jellyfin
 * Home's default section order now puts library tiles ("My Media") last;
   people who set their own order keep it.
 
+## Security review (done after the build)
+
+Checked: scrypt hashing, hashed session tokens in an HttpOnly SameSite cookie,
+JSON + Origin CSRF checks, AES-GCM profile passwords, the account boundary,
+escaping in every new HTML template, and the Kids profile's rating filter
+(live: 5 of 20 titles visible). Fixed:
+
+* Disabling an account, an admin password reset, or a member changing their
+  password now signs every device out of that account's profiles (Jellyfin
+  users disabled / passwords rotated). Verified against real Jellyfin.
+* Sign-in limits no longer lock the whole household out behind a tunnel:
+  `TRUST_PROXY=true` makes limits per visitor, and limits are split per
+  address + email / address / email. Without it, visitors' forwarding headers
+  aren't passed on to Jellyfin.
+
+Left as known trade-offs: the household Top 10 counts viewing across all
+accounts (fine for one family, can hint at what someone watched if friends
+are invited); an invite made "for" an email isn't tied to it (the link is
+the secret).
+
 ## How it was tested (and how to repeat it)
 
 * `npm ci` can fail behind proxies that block the GitHub tarball for

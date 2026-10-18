@@ -61,8 +61,17 @@ export function cookie(name, value, { maxAge, secure, path = '/' } = {}) {
     return out;
 }
 
-export function clientIp(req) {
-    return req.socket?.remoteAddress || 'unknown';
+/**
+ * The visitor's address. Behind a tunnel or reverse proxy every request arrives from the
+ * proxy, so with `trustProxy` the last X-Forwarded-For hop is used: the address the proxy
+ * itself added (Cloudflare and nginx both append the visitor), which a visitor can't forge.
+ * Only turn it on when the service can't be reached except through that proxy.
+ */
+export function clientIp(req, trustProxy = false) {
+    const socketIp = req.socket?.remoteAddress || 'unknown';
+    if (!trustProxy) return socketIp;
+    const hops = String(req.headers['x-forwarded-for'] || '').split(',').map(h => h.trim()).filter(Boolean);
+    return hops.at(-1) || socketIp;
 }
 
 /** Fixed-window rate limiter kept in memory. */

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { accountsApi } from 'homefin/accounts/api';
 import { ErrorBanner, Field, MAX_PROFILES, Screen, errorMessage, fireAndForget, useInputSetter, useMe } from 'homefin/accounts/components';
-import { getCurrentProfile, signOutEverywhere } from 'homefin/accounts/session';
+import { getCurrentProfile, leaveProfile, signOutEverywhere } from 'homefin/accounts/session';
 
 function memberSince(createdAt: string) {
     const date = new Date(createdAt.includes('T') ? createdAt : createdAt.replace(' ', 'T') + 'Z');
@@ -39,6 +39,12 @@ export default function HomefinAccount() {
         if (fields.email || fields.newPassword) fields.currentPassword = currentPassword;
         accountsApi.updateMe(fields)
             .then(updated => {
+                // A new password signs every device out of the profiles, this one included:
+                // pick a profile again (the account itself stays signed in here).
+                if (fields.newPassword && getCurrentProfile()) {
+                    fireAndForget(leaveProfile());
+                    return;
+                }
                 setMe(updated);
                 setCurrentPassword('');
                 setNewPassword('');
@@ -74,6 +80,7 @@ export default function HomefinAccount() {
                                 <h2>Account details</h2>
                                 <Field id='hfAccName' label='Name' value={name ?? me.account.name} onChange={onNameChange} maxLength={30} />
                                 <Field id='hfAccEmail' label='Email' type='email' value={email ?? me.account.email} onChange={onEmailChange} />
+                                <p className='hfPanel-note'>Changing your password signs every TV, phone and browser out of your profiles.</p>
                                 <Field id='hfAccNewPw' label='New password (leave blank to keep)' type='password' autoComplete='new-password' minLength={8} value={newPassword} onChange={onNewPasswordChange} />
                                 {needsPassword && (
                                     <Field id='hfAccCurPw' label='Current password' type='password' autoComplete='current-password' value={currentPassword} onChange={onCurrentPasswordChange} required />

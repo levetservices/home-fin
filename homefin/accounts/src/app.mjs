@@ -79,9 +79,14 @@ function isUniqueViolation(err) {
  * @param {object} [deps.options]
  */
 export function createApp({ store, jellyfin, key, options = {} }) {
-    const { cookieSecure = false, serverName = 'Home Fin', allowInvites = true } = options;
+    const { cookieSecure = false, serverName = 'Home Fin', allowInvites = true, trustProxy = false } = options;
     const router = createRouter();
+    const ipOf = req => clientIp(req, trustProxy);
+    // Sign-in: tight per address + email, looser per address and per email, so one person
+    // can't lock everyone out and an email can't be locked by a single attacker.
     const loginLimiter = createRateLimiter({ limit: 10, windowMs: 15 * 60 * 1000 });
+    const loginIpLimiter = createRateLimiter({ limit: 30, windowMs: 15 * 60 * 1000 });
+    const loginEmailLimiter = createRateLimiter({ limit: 50, windowMs: 15 * 60 * 1000 });
     const pinLimiter = createRateLimiter({ limit: 10, windowMs: 15 * 60 * 1000 });
     const inviteLimiter = createRateLimiter({ limit: 20, windowMs: 15 * 60 * 1000 });
     let trendingCache = { at: 0, value: null };
@@ -144,11 +149,11 @@ export function createApp({ store, jellyfin, key, options = {} }) {
 
     async function checkPin(row, pin, req) {
         if (!row.pin_hash) return;
-        pinLimiter.check(`${clientIp(req)}:${row.id}`);
+        pinLimiter.check(`${ipOf(req)}:${row.id}`);
         if (!pin || !(await verifySecret(pin, row.pin_hash))) {
             throw new HttpError(403, 'Incorrect PIN', 'bad_pin');
         }
-        pinLimiter.reset(`${clientIp(req)}:${row.id}`);
+        pinLimiter.reset(`${ipOf(req)}:${row.id}`);
     }
 
     /** "Forgot PIN?": the account password unlocks editing or deleting a locked profile. */
@@ -160,6 +165,23 @@ export function createApp({ store, jellyfin, key, options = {} }) {
             throw new HttpError(403, 'Your password is incorrect', 'bad_password');
         }
         loginLimiter.reset(`pw:${account.id}`);
+    }
+
+    /**
+     * Sign every device out of an account's profiles: a new Jellyfin password (only this
+     * service knows it) makes Jellyfin drop all of that user's existing tokens.
+     */
+    async function revokeProfileLogins(accountId) {
+        for (const row of store.profileRows(accountId)) {
+            const password = randomToken(32);
+            await jellyfin.setPassword(row.jellyfin_user_id, password);
+            store.updateProfile(row.id, { jellyfinPasswordEnc: encrypt(password, key) });
+        }
+    }
+
+    /** Disabled accounts' profiles are disabled in Jellyfin too, so TVs and apps stop as well. */
+    async function setProfilesDisabled(accountId, disabled) {
+        for (const row of store.profileRows(accountId)) await jellyfin.setDisabled(row.jellyfin_user_id, disabled);
     }
 
     async function deleteJellyfinUser(userId) {
@@ -177,14 +199,17 @@ export function createApp({ store, jellyfin, key, options = {} }) {
     router.add('POST', '/auth/login', async (req, res) => {
         const body = await readJson(req);
         const email = String(body.email ?? '').trim().toLowerCase();
-        loginLimiter.check(`ip:${clientIp(req)}`);
-        loginLimiter.check(`email:${email}`);
+        const ip = ipOf(req);
+        loginIpLimiter.check(ip);
+        loginEmailLimiter.check(email);
+        loginLimiter.check(`${ip}:${email}`);
         const row = email && store.accountRowByEmail(email);
         // Always run scrypt so response time doesn't reveal whether the email exists.
         const ok = await verifySecret(String(body.password ?? ''), row?.password_hash ?? 'scrypt$32768$8$1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
         if (!row || !ok) throw new HttpError(401, 'Incorrect email or password', 'bad_credentials');
         if (row.disabled) throw new HttpError(403, 'This account has been disabled', 'disabled');
-        loginLimiter.reset(`email:${email}`);
+        loginLimiter.reset(`${ip}:${email}`);
+        loginEmailLimiter.reset(email);
         startSession(req, res, row.id);
         return meBody(store.account(row.id));
     });
@@ -197,14 +222,14 @@ export function createApp({ store, jellyfin, key, options = {} }) {
     });
 
     router.add('GET', '/invites/:code', (req, res, { code }) => {
-        inviteLimiter.check(`ip:${clientIp(req)}`);
+        inviteLimiter.check(ipOf(req));
         const invite = store.inviteByHash(sha256(code));
         const valid = !!invite && !invite.used_at && invite.expires_at > new Date().toISOString();
         return { valid, email: valid ? invite.email : null, serverName };
     });
 
     router.add('POST', '/invites/:code/accept', async (req, res, { code }) => {
-        inviteLimiter.check(`ip:${clientIp(req)}`);
+        inviteLimiter.check(ipOf(req));
         const body = await readJson(req);
         const invite = store.inviteByHash(sha256(code));
         if (!invite || invite.used_at || invite.expires_at <= new Date().toISOString()) {
@@ -252,6 +277,8 @@ export function createApp({ store, jellyfin, key, options = {} }) {
             store.deleteSessionsForAccount(account.id, sha256(token));
         }
         store.updateAccount(account.id, fields);
+        // ...and every device watching as one of its profiles.
+        if (fields.passwordHash) await revokeProfileLogins(account.id);
         return meBody(store.account(account.id));
     });
 
@@ -409,6 +436,8 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         if (body.password !== undefined) fields.passwordHash = await hashSecret(cleanPassword(body.password));
         store.updateAccount(target.id, fields);
         if (fields.disabled || fields.passwordHash) store.deleteSessionsForAccount(target.id);
+        if (fields.disabled !== undefined && fields.disabled !== !!target.disabled) await setProfilesDisabled(target.id, fields.disabled);
+        if (fields.disabled || fields.passwordHash) await revokeProfileLogins(target.id);
         return { account: { ...store.account(target.id), profiles: store.profiles(target.id) } };
     });
 
@@ -472,7 +501,8 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         requireAdmin(req);
         const body = await readJson(req);
         const accountId = Number(body.accountId);
-        if (!store.account(accountId)) throw notFound('Account not found');
+        const owner = store.account(accountId);
+        if (!owner) throw notFound('Account not found');
         const userId = String(body.jellyfinUserId ?? '');
         if (store.profileRowByJellyfinUser(userId)) throw badRequest('That Jellyfin user is already a profile');
         const user = await jellyfin.getUser(userId);
@@ -487,7 +517,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
 
         const password = randomToken(32);
         await jellyfin.setPassword(user.Id, password);
-        await jellyfin.applyProfilePolicy(user.Id, cleanMaturity(body.maturity));
+        await jellyfin.applyProfilePolicy(user.Id, cleanMaturity(body.maturity), { disabled: owner.disabled });
         const id = store.createProfile({
             accountId,
             name,

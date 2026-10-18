@@ -24,6 +24,8 @@ const config = {
     secret: env.HOMEFIN_SECRET,
     dbFile: env.HOMEFIN_DB || './data/homefin.db',
     proxy: env.PROXY_JELLYFIN === 'true',
+    // Behind Cloudflare Tunnel / a reverse proxy: take the visitor's address from its headers.
+    trustProxy: env.TRUST_PROXY === 'true',
     cookieSecure: env.HOMEFIN_COOKIE_SECURE ? env.HOMEFIN_COOKIE_SECURE === 'true' : String(env.HOMEFIN_PUBLIC_URL || '').startsWith('https://'),
     serverName: env.HOMEFIN_SERVER_NAME || 'Home Fin',
     adminEmail: env.HOMEFIN_ADMIN_EMAIL,
@@ -49,12 +51,19 @@ const target = new URL(config.jellyfinUrl);
 const isHttps = target.protocol === 'https:';
 const targetPort = Number(target.port || (isHttps ? 443 : 80));
 
+/**
+ * Headers for Jellyfin. Forwarding headers from the visitor are only passed on when they came
+ * through a trusted proxy (TRUST_PROXY); otherwise anyone could claim a LAN address and get
+ * Jellyfin's local-network treatment.
+ */
 function forwardedHeaders(req) {
     const headers = { ...req.headers, host: target.host };
-    const prior = req.headers['x-forwarded-for'];
-    headers['x-forwarded-for'] = prior ? `${prior}, ${req.socket.remoteAddress}` : req.socket.remoteAddress;
-    headers['x-forwarded-proto'] = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http');
-    headers['x-forwarded-host'] = req.headers['x-forwarded-host'] || req.headers.host;
+    const socketIp = req.socket.remoteAddress;
+    const trusted = config.trustProxy;
+    const prior = trusted ? req.headers['x-forwarded-for'] : '';
+    headers['x-forwarded-for'] = prior ? `${prior}, ${socketIp}` : socketIp;
+    headers['x-forwarded-proto'] = (trusted && req.headers['x-forwarded-proto']) || (req.socket.encrypted ? 'https' : 'http');
+    headers['x-forwarded-host'] = (trusted && req.headers['x-forwarded-host']) || req.headers.host;
     return headers;
 }
 
