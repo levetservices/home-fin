@@ -3,6 +3,8 @@ import React, { type FC } from 'react';
 
 import type { AvatarPreset } from './api';
 
+import './avatar.scss';
+
 const FALLBACK: AvatarPreset = { key: 'none', emoji: '🙂', from: '#5a5a5a', to: '#2a2a2a' };
 
 export function findAvatar(avatars: AvatarPreset[], key: string | undefined) {

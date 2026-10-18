@@ -145,8 +145,8 @@ All JSON. `401` when no session, `404` for anything outside the account.
 | `PATCH /me` | session | change name / email / password (needs current password) |
 | `GET  /avatars` | anyone | preset avatar catalogue |
 | `POST /profiles` | session | create profile `{ name, avatar, maturity, pin? }` |
-| `PATCH /profiles/:id` | session | rename, avatar, maturity, set/clear PIN (needs PIN if set) |
-| `DELETE /profiles/:id` | session | delete profile **and** its Jellyfin user (not the last one) |
+| `PATCH /profiles/:id` | session | rename, avatar, maturity, set/clear PIN (needs `currentPin` if set, or `accountPassword` for *Forgot PIN?*) |
+| `DELETE /profiles/:id` | session | delete profile **and** its Jellyfin user (not the last one; same PIN / password rule) |
 | `POST /profiles/:id/session` | session | `{ pin?, device }` → Jellyfin `AuthenticationResult` for this device |
 | `GET  /trending` | session | household Top 10 films / series over the last 7 days |
 | `GET  /invites/:code` | anyone | is this invite valid? (for the join page) |

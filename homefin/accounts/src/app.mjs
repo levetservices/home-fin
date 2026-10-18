@@ -151,6 +151,17 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         pinLimiter.reset(`${clientIp(req)}:${row.id}`);
     }
 
+    /** "Forgot PIN?": the account password unlocks editing or deleting a locked profile. */
+    async function checkPinOrPassword(row, body, req, account) {
+        if (!row.pin_hash || body.accountPassword === undefined) return checkPin(row, body.currentPin, req);
+        loginLimiter.check(`pw:${account.id}`);
+        const accountRow = store.accountRowById(account.id);
+        if (!(await verifySecret(String(body.accountPassword), accountRow.password_hash))) {
+            throw new HttpError(403, 'Your password is incorrect', 'bad_password');
+        }
+        loginLimiter.reset(`pw:${account.id}`);
+    }
+
     async function deleteJellyfinUser(userId) {
         try {
             await jellyfin.deleteUser(userId);
@@ -261,7 +272,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         const row = store.profileRow(account.id, Number(id));
         if (!row) throw notFound('Profile not found');
         const body = await readJson(req);
-        await checkPin(row, body.currentPin, req);
+        await checkPinOrPassword(row, body, req, account);
 
         const fields = {};
         if (body.name !== undefined) {
@@ -294,7 +305,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         if (!row) throw notFound('Profile not found');
         if (store.countProfiles(account.id) <= 1) throw badRequest('An account needs at least one profile');
         const body = await readJson(req);
-        await checkPin(row, body.currentPin, req);
+        await checkPinOrPassword(row, body, req, account);
         await deleteJellyfinUser(row.jellyfin_user_id);
         store.deleteProfile(row.id);
         return { profiles: store.profiles(account.id) };
@@ -413,7 +424,10 @@ export function createApp({ store, jellyfin, key, options = {} }) {
 
     router.add('GET', '/admin/invites', req => {
         requireAdmin(req);
-        return { invites: store.listInvites() };
+        const invites = store.listInvites().map(i => ({
+            id: i.id, email: i.email, note: i.note, expiresAt: i.expires_at, usedAt: i.used_at, usedBy: i.used_by, createdAt: i.created_at
+        }));
+        return { invites };
     });
 
     router.add('POST', '/admin/invites', async req => {

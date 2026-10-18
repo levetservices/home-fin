@@ -1,4 +1,6 @@
 // Client for the Home Fin accounts service (homefin/accounts). Same-origin, cookie session.
+import type { AuthenticationResult } from '@jellyfin/sdk/lib/generated-client/models/authentication-result';
+
 import { getHomefinAccounts } from 'scripts/settings/webSettings';
 
 export type Maturity = 'kids' | 'teen' | 'all';
@@ -38,14 +40,17 @@ export interface Invite {
     id: number
     email: string | null
     note: string | null
-    expires_at?: string
-    expiresAt?: string
-    used_at?: string | null
-    used_by?: string | null
-    created_at?: string
+    expiresAt: string
+    usedAt?: string | null
+    usedBy?: string | null
+    createdAt?: string
+    /** Only returned once, when the invite is created. */
     code?: string
     url?: string
 }
+
+/** Proves the right to change a locked profile: its PIN, or the account password ("Forgot PIN?"). */
+export type ProfileCredential = { currentPin?: string, accountPassword?: string };
 
 export interface JellyfinUserSummary {
     id: string
@@ -66,6 +71,9 @@ export class AccountsError extends Error {
 
     constructor(status: number, message: string, code?: string) {
         super(message);
+        // Transpiled `extends Error` loses the prototype; restore it so `instanceof` works.
+        Object.setPrototypeOf(this, AccountsError.prototype);
+        this.name = 'AccountsError';
         this.status = status;
         this.code = code;
     }
@@ -107,11 +115,11 @@ export const accountsApi = {
 
     createProfile: (fields: { name: string, avatar?: string, maturity?: Maturity, pin?: string | null }) =>
         request<{ profile: Profile, profiles: Profile[] }>('POST', '/profiles', fields),
-    updateProfile: (id: number, fields: { name?: string, avatar?: string, maturity?: Maturity, pin?: string | null, currentPin?: string }) =>
+    updateProfile: (id: number, fields: { name?: string, avatar?: string, maturity?: Maturity, pin?: string | null } & ProfileCredential) =>
         request<{ profile: Profile, profiles: Profile[] }>('PATCH', `/profiles/${id}`, fields),
-    deleteProfile: (id: number, currentPin?: string) => request<{ profiles: Profile[] }>('DELETE', `/profiles/${id}`, { currentPin }),
+    deleteProfile: (id: number, credential: ProfileCredential = {}) => request<{ profiles: Profile[] }>('DELETE', `/profiles/${id}`, credential),
     profileSession: (id: number, device: { id: string, name: string, client: string, version: string }, pin?: string) =>
-        request<{ authentication: any, profile: Profile }>('POST', `/profiles/${id}/session`, { device, pin }),
+        request<{ authentication: AuthenticationResult, profile: Profile }>('POST', `/profiles/${id}/session`, { device, pin }),
     trending: () => request<Trending>('GET', '/trending'),
 
     invite: (code: string) => request<{ valid: boolean, email: string | null, serverName: string }>('GET', `/invites/${encodeURIComponent(code)}`),

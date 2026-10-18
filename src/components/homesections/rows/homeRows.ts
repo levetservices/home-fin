@@ -3,6 +3,7 @@ import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto
 import type { ApiClient } from 'jellyfin-apiclient';
 
 import { appRouter } from 'components/router/appRouter';
+import { getDisplayName } from 'homefin/accounts/session';
 import globalize from 'lib/globalize';
 import type { UserSettings } from 'scripts/settings/userSettings';
 
@@ -46,7 +47,7 @@ export function loadContinueWatchingRow(elem: RefreshableRow, apiClient: ApiClie
             MediaTypes: 'Video'
         });
         return {
-            title: user.Name ? globalize.translate('HeaderContinueWatchingFor', user.Name) : globalize.translate('HeaderContinueWatching'),
+            title: getDisplayName(user) ? globalize.translate('HeaderContinueWatchingFor', getDisplayName(user)) : globalize.translate('HeaderContinueWatching'),
             items: result.Items || [],
             useEpisodeImages: userSettings.useEpisodeImagesInNextUpAndResume()
         };

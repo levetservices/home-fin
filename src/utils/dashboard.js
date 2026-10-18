@@ -102,7 +102,19 @@ export function onServerChanged(_userId, _accessToken, apiClient) {
 }
 
 export function logout() {
-    ServerConnections.logout().then(function () {
+    import('homefin/accounts/api')
+        .then(({ isAccountsEnabled }) => isAccountsEnabled())
+        .catch(() => false)
+        .then(enabled => {
+            if (!enabled) return logoutJellyfin();
+            // Home Fin accounts: end the Jellyfin session and the account session together.
+            return import('homefin/accounts/session').then(({ signOutEverywhere }) => signOutEverywhere());
+        })
+        .catch(err => console.error('[Dashboard] logout failed', err));
+}
+
+function logoutJellyfin() {
+    return ServerConnections.logout().then(function () {
         // Clear the query cache
         queryClient.clear();
         // Reset cached views

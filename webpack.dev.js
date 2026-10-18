@@ -24,6 +24,13 @@ module.exports = merge(common, {
                 errors: true,
                 warnings: false
             }
-        }
+        },
+        // Home Fin accounts service (homefin/accounts), so the dev build can use it same-origin.
+        proxy: [
+            {
+                context: ['/homefin-api'],
+                target: process.env.HOMEFIN_ACCOUNTS_URL || 'http://127.0.0.1:8097'
+            }
+        ]
     }
 });

@@ -1,10 +1,11 @@
-import React, { type FormEvent, useCallback, useEffect, useState } from 'react';
+import React, { type ChangeEvent, type FC, type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 
-import { accountsApi, type Account, type Invite, type JellyfinUserSummary, type Profile } from 'homefin/accounts/api';
+import { accountsApi, type Account, type AvatarPreset, type Invite, type JellyfinUserSummary, type Profile } from 'homefin/accounts/api';
 import { Avatar, findAvatar } from 'homefin/accounts/avatar';
-import { ErrorBanner, Field, Screen, errorMessage, useAvatars, useMe } from 'homefin/accounts/components';
+import { ErrorBanner, Field, Screen, errorMessage, useAvatars, useInputSetter, useMe } from 'homefin/accounts/components';
 
 type AccountWithProfiles = Account & { profiles: Profile[] };
+type Run = (action: () => Promise<unknown>) => void;
 
 function inviteBaseUrl() {
     return window.location.href.split('#')[0];
@@ -15,6 +16,94 @@ function formatDate(value?: string | null) {
     const date = new Date(value.includes('T') ? value : value.replace(' ', 'T') + 'Z');
     return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+function inviteStatus(invite: Invite) {
+    if (invite.usedAt) return `Used by ${invite.usedBy || 'someone'}`;
+    if (new Date(invite.expiresAt) < new Date()) return 'Expired';
+    return `Expires ${formatDate(invite.expiresAt)}`;
+}
+
+// ── rows ──────────────────────────────────────────────────────────────────
+
+const InviteRow: FC<{ invite: Invite, run: Run }> = ({ invite, run }) => {
+    const revoke = useCallback(() => run(() => accountsApi.admin.deleteInvite(invite.id)), [invite.id, run]);
+    return (
+        <tr>
+            <td>{invite.note || invite.email || '—'}</td>
+            <td>{formatDate(invite.createdAt)}</td>
+            <td>{inviteStatus(invite)}</td>
+            <td>{!invite.usedAt && <button type='button' className='hfLinkButton' onClick={revoke}>Revoke</button>}</td>
+        </tr>
+    );
+};
+
+const AccountRow: FC<{ account: AccountWithProfiles, avatars: AvatarPreset[], isSelf: boolean, run: Run }> = ({ account, avatars, isSelf, run }) => {
+    const resetPassword = useCallback(() => {
+        const password = window.prompt(`New password for ${account.email} (8+ characters)`);
+        if (password) run(() => accountsApi.admin.updateAccount(account.id, { password }));
+    }, [account, run]);
+    const toggleDisabled = useCallback(() => run(() => accountsApi.admin.updateAccount(account.id, { disabled: !account.disabled })), [account, run]);
+    const remove = useCallback(() => {
+        if (window.confirm(`Delete ${account.email} and all of its profiles? Their watch history goes too.`)) {
+            run(() => accountsApi.admin.deleteAccount(account.id));
+        }
+    }, [account, run]);
+
+    return (
+        <li className={account.disabled ? 'is-disabled' : ''}>
+            <div className='hfAccounts-who'>
+                <strong>{account.name}</strong>
+                <span>{account.email}</span>
+                {account.isAdmin && <span className='hfTag'>Admin</span>}
+                {account.disabled && <span className='hfTag hfTag-muted'>Disabled</span>}
+            </div>
+            <div className='hfAccounts-profiles'>
+                {account.profiles.map(profile => (
+                    <span key={profile.id} className='hfChip'>
+                        <Avatar avatar={findAvatar(avatars, profile.avatar)} className='hfChip-avatar' />
+                        {profile.name}
+                    </span>
+                ))}
+                {!account.profiles.length && <span className='hfPanel-note'>No profiles yet</span>}
+            </div>
+            {!isSelf && (
+                <div className='hfAccounts-actions'>
+                    <button type='button' className='hfLinkButton' onClick={resetPassword}>Reset password</button>
+                    <button type='button' className='hfLinkButton' onClick={toggleDisabled}>{account.disabled ? 'Enable' : 'Disable'}</button>
+                    <button type='button' className='hfLinkButton hfLinkButton-danger' onClick={remove}>Delete</button>
+                </div>
+            )}
+        </li>
+    );
+};
+
+const JellyfinUserRow: FC<{ user: JellyfinUserSummary, accounts: AccountWithProfiles[], run: Run }> = ({ user, accounts, run }) => {
+    const [target, setTarget] = useState('');
+    const onTargetChange = useCallback((e: ChangeEvent<HTMLSelectElement>) => setTarget(e.target.value), []);
+    const adopt = useCallback(() => run(() => accountsApi.admin.adopt({ accountId: Number(target), jellyfinUserId: user.id })), [target, user.id, run]);
+
+    return (
+        <li>
+            <div className='hfAccounts-who'>
+                <strong>{user.name}</strong>
+                {user.isAdmin && <span className='hfTag hfTag-muted'>Administrator</span>}
+            </div>
+            {!user.isAdmin && (
+                <div className='hfAccounts-actions'>
+                    <select className='hfSelect' value={target} onChange={onTargetChange} aria-label={`Account for ${user.name}`}>
+                        <option value=''>Choose an account…</option>
+                        {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.email})</option>)}
+                    </select>
+                    <button type='button' className='hfButton hfButton-outline' disabled={!target} onClick={adopt}>Make profile</button>
+                </div>
+            )}
+        </li>
+    );
+};
+
+// ── page ─────────────────────────────────────────────────────────────────
+
+const EMPTY_FORM = { name: '', email: '', password: '' };
 
 /** Server owner tools: invite links, accounts, existing Jellyfin users. */
 export default function HomefinAdmin() {
@@ -28,62 +117,67 @@ export default function HomefinAdmin() {
     const [inviteNote, setInviteNote] = useState('');
     const [copied, setCopied] = useState(false);
     const [adding, setAdding] = useState(false);
-    const [form, setForm] = useState({ name: '', email: '', password: '' });
-    const [adoptTarget, setAdoptTarget] = useState<Record<string, string>>({});
+    const [form, setForm] = useState(EMPTY_FORM);
+    const inviteInput = useRef<HTMLInputElement>(null);
+    const onInviteNoteChange = useInputSetter(setInviteNote);
 
     const load = useCallback(async () => {
-        try {
-            const [a, i, u] = await Promise.all([accountsApi.admin.accounts(), accountsApi.admin.invites(), accountsApi.admin.jellyfinUsers()]);
-            setAccounts(a.accounts);
-            setInvites(i.invites);
-            setUsers(u.users);
-        } catch (err) {
-            setError(errorMessage(err));
-        }
+        const [a, i, u] = await Promise.all([accountsApi.admin.accounts(), accountsApi.admin.invites(), accountsApi.admin.jellyfinUsers()]);
+        setAccounts(a.accounts);
+        setInvites(i.invites);
+        setUsers(u.users);
     }, []);
 
     useEffect(() => {
-        if (me?.account.isAdmin) void load();
+        if (me?.account.isAdmin) load().catch(err => setError(errorMessage(err)));
     }, [me, load]);
 
-    const run = async (action: () => Promise<unknown>) => {
+    const run = useCallback<Run>(action => {
         setError('');
-        try {
-            await action();
-            await load();
-        } catch (err) {
-            setError(errorMessage(err));
-        }
-    };
+        action().then(load).catch(err => setError(errorMessage(err)));
+    }, [load]);
 
-    const createInvite = (e: FormEvent) => {
+    const createInvite = useCallback((e: FormEvent) => {
         e.preventDefault();
-        void run(async () => {
+        run(async () => {
             const { invite } = await accountsApi.admin.createInvite({ note: inviteNote || undefined, baseUrl: inviteBaseUrl() });
             setNewInvite(invite);
             setInviteNote('');
             setCopied(false);
         });
-    };
+    }, [inviteNote, run]);
 
-    const copyInvite = async () => {
-        if (!newInvite?.url) return;
-        try {
-            await navigator.clipboard.writeText(newInvite.url);
-            setCopied(true);
-        } catch {
-            setCopied(false);
+    const selectInvite = useCallback(() => inviteInput.current?.select(), []);
+    const copyInvite = useCallback(() => {
+        const url = newInvite?.url;
+        if (!url) return;
+        // Clipboard API needs a secure context; otherwise select the text for a manual copy.
+        // eslint-disable-next-line compat/compat -- guarded: falls back to selecting the text
+        const clipboard = window.isSecureContext ? navigator.clipboard : undefined;
+        if (!clipboard) {
+            selectInvite();
+            return;
         }
-    };
+        clipboard.writeText(url).then(() => setCopied(true), selectInvite);
+    }, [newInvite, selectInvite]);
 
-    const createAccount = (e: FormEvent) => {
+    const toggleAdding = useCallback(() => setAdding(value => !value), []);
+    const onFormChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setForm(current => ({ ...current, [name]: value }));
+    }, []);
+    const createAccount = useCallback((e: FormEvent) => {
         e.preventDefault();
-        void run(async () => {
+        run(async () => {
             await accountsApi.admin.createAccount(form);
-            setForm({ name: '', email: '', password: '' });
+            setForm(EMPTY_FORM);
             setAdding(false);
         });
-    };
+    }, [form, run]);
+
+    useEffect(() => {
+        if (newInvite) selectInvite();
+    }, [newInvite, selectInvite]);
 
     if (me && !me.account.isAdmin) {
         return <Screen id='homefinAdminPage' title='Admin'><section className='hfAccount'><h1>Not available</h1></section></Screen>;
@@ -99,37 +193,20 @@ export default function HomefinAdmin() {
                     <h2>Invite someone</h2>
                     <p className='hfPanel-note'>Make a link, send it however you like. It works once and lasts 7 days; they choose their own email and password.</p>
                     <form className='hfInline' onSubmit={createInvite}>
-                        <Field id='hfInviteNote' label='Who is it for? (optional)' value={inviteNote} onChange={e => setInviteNote(e.target.value)} maxLength={100} />
+                        <Field id='hfInviteNote' label='Who is it for? (optional)' value={inviteNote} onChange={onInviteNoteChange} maxLength={100} />
                         <button type='submit' className='hfButton hfButton-red'>Create invite link</button>
                     </form>
                     {newInvite?.url && (
                         <div className='hfInviteLink'>
-                            <input readOnly value={newInvite.url} aria-label='Invite link' onFocus={e => e.target.select()} />
+                            <input ref={inviteInput} readOnly value={newInvite.url} aria-label='Invite link' onFocus={selectInvite} />
                             <button type='button' className='hfButton hfButton-primary' onClick={copyInvite}>{copied ? 'Copied' : 'Copy'}</button>
                         </div>
                     )}
                     {invites.length > 0 && (
                         <table className='hfTable'>
-                            <thead><tr><th>For</th><th>Created</th><th>Status</th><th /></tr></thead>
+                            <thead><tr><th>For</th><th>Created</th><th>Status</th><th aria-label='Actions' /></tr></thead>
                             <tbody>
-                                {invites.map(invite => {
-                                    const expired = !invite.used_at && invite.expires_at && invite.expires_at < new Date().toISOString();
-                                    let status = `Expires ${formatDate(invite.expires_at)}`;
-                                    if (invite.used_at) status = `Used by ${invite.used_by || 'someone'}`;
-                                    else if (expired) status = 'Expired';
-                                    return (
-                                        <tr key={invite.id}>
-                                            <td>{invite.note || invite.email || '—'}</td>
-                                            <td>{formatDate(invite.created_at)}</td>
-                                            <td>{status}</td>
-                                            <td>
-                                                {!invite.used_at && (
-                                                    <button type='button' className='hfLinkButton' onClick={() => void run(() => accountsApi.admin.deleteInvite(invite.id))}>Revoke</button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                {invites.map(invite => <InviteRow key={invite.id} invite={invite} run={run} />)}
                             </tbody>
                         </table>
                     )}
@@ -138,51 +215,19 @@ export default function HomefinAdmin() {
                 <div className='hfPanel'>
                     <div className='hfPanel-head'>
                         <h2>Accounts</h2>
-                        <button type='button' className='hfButton hfButton-outline' onClick={() => setAdding(!adding)}>{adding ? 'Cancel' : 'Add account'}</button>
+                        <button type='button' className='hfButton hfButton-outline' onClick={toggleAdding}>{adding ? 'Cancel' : 'Add account'}</button>
                     </div>
                     {adding && (
                         <form className='hfStack' onSubmit={createAccount}>
-                            <Field id='hfNewName' label='Name' value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required maxLength={30} />
-                            <Field id='hfNewEmail' label='Email' type='email' value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-                            <Field id='hfNewPw' label='Temporary password (8+)' type='password' autoComplete='new-password' minLength={8} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+                            <Field id='hfNewName' name='name' label='Name' value={form.name} onChange={onFormChange} required maxLength={30} />
+                            <Field id='hfNewEmail' name='email' label='Email' type='email' value={form.email} onChange={onFormChange} required />
+                            <Field id='hfNewPw' name='password' label='Temporary password (8+)' type='password' autoComplete='new-password' minLength={8} value={form.password} onChange={onFormChange} required />
                             <button type='submit' className='hfButton hfButton-primary'>Create account</button>
                         </form>
                     )}
                     <ul className='hfAccounts'>
                         {accounts.map(account => (
-                            <li key={account.id} className={account.disabled ? 'is-disabled' : ''}>
-                                <div className='hfAccounts-who'>
-                                    <strong>{account.name}</strong>
-                                    <span>{account.email}</span>
-                                    {account.isAdmin && <span className='hfTag'>Admin</span>}
-                                    {account.disabled && <span className='hfTag hfTag-muted'>Disabled</span>}
-                                </div>
-                                <div className='hfAccounts-profiles'>
-                                    {account.profiles.map(profile => (
-                                        <span key={profile.id} className='hfChip'>
-                                            <Avatar avatar={findAvatar(avatars, profile.avatar)} className='hfChip-avatar' />
-                                            {profile.name}
-                                        </span>
-                                    ))}
-                                    {!account.profiles.length && <span className='hfPanel-note'>No profiles yet</span>}
-                                </div>
-                                {account.id !== me?.account.id && (
-                                    <div className='hfAccounts-actions'>
-                                        <button type='button' className='hfLinkButton' onClick={() => {
-                                            const password = window.prompt(`New password for ${account.email} (8+ characters)`);
-                                            if (password) void run(() => accountsApi.admin.updateAccount(account.id, { password }));
-                                        }}>Reset password</button>
-                                        <button type='button' className='hfLinkButton' onClick={() => void run(() => accountsApi.admin.updateAccount(account.id, { disabled: !account.disabled }))}>
-                                            {account.disabled ? 'Enable' : 'Disable'}
-                                        </button>
-                                        <button type='button' className='hfLinkButton hfLinkButton-danger' onClick={() => {
-                                            if (window.confirm(`Delete ${account.email} and all of its profiles? Their watch history goes too.`)) {
-                                                void run(() => accountsApi.admin.deleteAccount(account.id));
-                                            }
-                                        }}>Delete</button>
-                                    </div>
-                                )}
-                            </li>
+                            <AccountRow key={account.id} account={account} avatars={avatars} isSelf={account.id === me?.account.id} run={run} />
                         ))}
                     </ul>
                 </div>
@@ -192,33 +237,7 @@ export default function HomefinAdmin() {
                     <p className='hfPanel-note'>Turn a Jellyfin user into a profile of an account and keep their watch history. Administrator users stay as normal Jellyfin logins.</p>
                     {users.length === 0 && <p className='hfPanel-note'>Every Jellyfin user is already a profile.</p>}
                     <ul className='hfAccounts'>
-                        {users.map(user => (
-                            <li key={user.id}>
-                                <div className='hfAccounts-who'>
-                                    <strong>{user.name}</strong>
-                                    {user.isAdmin && <span className='hfTag hfTag-muted'>Administrator</span>}
-                                </div>
-                                {!user.isAdmin && (
-                                    <div className='hfAccounts-actions'>
-                                        <select
-                                            className='hfSelect'
-                                            value={adoptTarget[user.id] ?? ''}
-                                            onChange={e => setAdoptTarget({ ...adoptTarget, [user.id]: e.target.value })}
-                                            aria-label={`Account for ${user.name}`}
-                                        >
-                                            <option value=''>Choose an account…</option>
-                                            {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.email})</option>)}
-                                        </select>
-                                        <button
-                                            type='button'
-                                            className='hfButton hfButton-outline'
-                                            disabled={!adoptTarget[user.id]}
-                                            onClick={() => void run(() => accountsApi.admin.adopt({ accountId: Number(adoptTarget[user.id]), jellyfinUserId: user.id }))}
-                                        >Make profile</button>
-                                    </div>
-                                )}
-                            </li>
-                        ))}
+                        {users.map(user => <JellyfinUserRow key={user.id} user={user} accounts={accounts} run={run} />)}
                     </ul>
                 </div>
             </section>

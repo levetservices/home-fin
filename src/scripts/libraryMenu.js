@@ -29,6 +29,8 @@ import { PluginType } from '../types/plugin.ts';
 import Events from '../utils/events.ts';
 import { getParameterByName } from '../utils/url.ts';
 import datetime from '../scripts/datetime';
+import { isProfileMenuEnabled, renderKidsShortcut, renderProfileButton, toggleProfileMenu } from '../homefin/accounts/profileMenu';
+import { getDisplayName } from '../homefin/accounts/session';
 
 import '../elements/emby-button/paper-icon-button-light';
 
@@ -146,7 +148,7 @@ function updateUserInHeader(user) {
             updateHeaderUserButton(url);
             hasImage = true;
         }
-        headerUserButton.title = user.name;
+        headerUserButton.title = getDisplayName(user.localUser) || user.name;
         headerUserButton.classList.remove('hide');
     } else {
         headerUserButton.classList.add('hide');
@@ -154,6 +156,15 @@ function updateUserInHeader(user) {
 
     if (!hasImage) {
         updateHeaderUserButton(null);
+    }
+
+    // Home Fin profiles: the profile's avatar + caret opens the profile menu.
+    if (user?.localUser) {
+        isProfileMenuEnabled().then(enabled => {
+            if (!enabled) return;
+            renderProfileButton(headerUserButton);
+            renderKidsShortcut(headerUserButton.parentElement);
+        }).catch(err => console.error('[libraryMenu] profile menu failed', err));
     }
 
     if (user?.localUser) {
@@ -195,6 +206,7 @@ function updateUserInHeader(user) {
 }
 
 function updateHeaderUserButton(src) {
+    headerUserButton.classList.remove('hfProfileButton');
     if (src) {
         headerUserButton.classList.add('headerUserButtonRound');
         headerUserButton.innerHTML = '<div class="headerButton headerButtonRight paper-icon-button-light headerUserButtonRound" style="background-image:url(\'' + src + "');\"></div>";
@@ -220,7 +232,10 @@ function showSearch() {
 }
 
 function onHeaderUserButtonClick() {
-    Dashboard.navigate('mypreferencesmenu');
+    isProfileMenuEnabled().then(enabled => {
+        if (enabled) return toggleProfileMenu(headerUserButton);
+        Dashboard.navigate('mypreferencesmenu');
+    }).catch(err => console.error('[libraryMenu] profile menu failed', err));
 }
 
 function onHeaderHomeButtonClick() {

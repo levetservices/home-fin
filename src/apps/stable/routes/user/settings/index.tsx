@@ -8,6 +8,7 @@ import Loading from 'components/loading/LoadingComponent';
 import Page from 'components/Page';
 import { AppFeature } from 'constants/appFeature';
 import LinkButton from 'elements/emby-button/LinkButton';
+import { getDisplayName } from 'homefin/accounts/session';
 import { useApi } from 'hooks/useApi';
 import { useQuickConnectEnabled } from 'hooks/useQuickConnect';
 import { useUsers } from 'hooks/useUsers';
@@ -71,7 +72,7 @@ const UserSettingsPage: FC = () => {
                                 paddingLeft: '0.25em'
                             }}
                         >
-                            {user.Name}
+                            {getDisplayName(user)}
                         </h2>
 
                         <LinkButton

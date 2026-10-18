@@ -7,6 +7,7 @@ import loading from '../loading/loading';
 import alert from '../alert';
 
 import { getItemQuery } from 'hooks/useItem';
+import { isAccountsEnabled } from 'homefin/accounts/api';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
 import { toApi } from 'utils/jellyfin-apiclient/compat';
 import { queryClient } from 'utils/query/queryClient';
@@ -27,7 +28,13 @@ export const PUBLIC_PATHS = [
     '/wizardlibrary',
     '/wizardsettings',
     '/wizardstart',
-    '/wizarduser'
+    '/wizarduser',
+    '/homefin/login',
+    '/homefin/join',
+    '/homefin/profiles',
+    '/homefin/profiles/manage',
+    '/homefin/account',
+    '/homefin/admin'
 ];
 
 class AppRouter {
@@ -463,7 +470,10 @@ class AppRouter {
     }
 
     showLocalLogin(serverId) {
-        return this.show('login?serverid=' + serverId);
+        // Home Fin accounts: back to Who's watching? (or the account sign-in) instead of Jellyfin's login
+        return isAccountsEnabled()
+            .catch(() => false)
+            .then(enabled => this.show(enabled ? 'homefin/profiles' : 'login?serverid=' + serverId));
     }
 
     showVideoOsd() {

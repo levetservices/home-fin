@@ -13,6 +13,7 @@ import loading from '../../../../components/loading/loading';
 import toast from '../../../../components/toast/toast';
 import Page from '../../../../components/Page';
 import { AppFeature } from 'constants/appFeature';
+import { getDisplayName } from 'homefin/accounts/session';
 
 const UserProfile: FunctionComponent = () => {
     const [ searchParams ] = useSearchParams();
@@ -41,8 +42,8 @@ const UserProfile: FunctionComponent = () => {
                 throw new Error('Unexpected null user name or id');
             }
 
-            setUserName(user.Name);
-            void libraryMenu.then(menu => menu.setTitle(user.Name));
+            setUserName(getDisplayName(user));
+            void libraryMenu.then(menu => menu.setTitle(getDisplayName(user)));
 
             let imageUrl = 'assets/img/avatar.png';
             if (user.PrimaryImageTag) {

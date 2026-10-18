@@ -1,0 +1,19 @@
+// Profile avatar tile: a gradient square with the emoji centred, scaled with the tile.
+
+.hfAvatar {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 10%;
+    aspect-ratio: 1;
+    container-type: inline-size;
+}
+
+.hfAvatar-emoji {
+    font-size: 58cqw;
+    line-height: 1;
+    user-select: none;
+}

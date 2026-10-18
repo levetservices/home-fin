@@ -219,6 +219,19 @@ describe('profiles', () => {
         assert.equal((await call('PATCH', `/profiles/${data.profile.id}`, { name: 'Papa', currentPin: '4321' })).status, 200);
     });
 
+    it('lets the account password stand in for a forgotten PIN', async () => {
+        const { call } = await createAccount('forgot@example.com');
+        await call('POST', '/profiles', { name: 'Kid' });
+        const { data } = await call('POST', '/profiles', { name: 'Dad', pin: '4321' });
+        const id = data.profile.id;
+        assert.equal((await call('PATCH', `/profiles/${id}`, { pin: null, accountPassword: 'wrong-password' })).status, 403);
+        const reset = await call('PATCH', `/profiles/${id}`, { pin: '1111', accountPassword: 'correct horse' });
+        assert.equal(reset.status, 200);
+        assert.equal((await call('POST', `/profiles/${id}/session`, { device, pin: '1111' })).status, 200);
+        assert.equal((await call('DELETE', `/profiles/${id}`, { accountPassword: 'wrong-password' })).status, 403);
+        assert.equal((await call('DELETE', `/profiles/${id}`, { accountPassword: 'correct horse' })).status, 200);
+    });
+
     it('recovers when the Jellyfin password was changed elsewhere', async () => {
         const { call } = await createAccount('drift@example.com');
         const { data } = await call('POST', '/profiles', { name: 'Alana' });

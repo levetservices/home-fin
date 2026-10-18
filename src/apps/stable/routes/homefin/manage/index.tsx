@@ -1,68 +1,100 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { accountsApi, type Profile } from 'homefin/accounts/api';
-import { Avatar, findAvatar } from 'homefin/accounts/avatar';
-import { ErrorBanner, PinPad, ProfileEditor, Screen, useAvatars, useMe } from 'homefin/accounts/components';
-
-const MAX_PROFILES = 5;
+import { accountsApi, type Profile, type ProfileCredential } from 'homefin/accounts/api';
+import { AddProfileTile, ProfileTile } from 'homefin/accounts/ProfileTile';
+import { ErrorBanner, MAX_PROFILES, PasswordPrompt, PinPad, ProfileEditor, Screen, errorMessage, useAvatars, useMe } from 'homefin/accounts/components';
 
 /** Manage Profiles: add, edit (name, icon, maturity, PIN) and delete. */
 export default function HomefinManageProfiles() {
     const navigate = useNavigate();
     const [params] = useSearchParams();
+    const fromAdd = !!params.get('add');
     const { me, setMe, error } = useMe();
     const avatars = useAvatars();
-    const [editing, setEditing] = useState<Profile | 'new' | null>(params.get('add') ? 'new' : null);
+    const [editing, setEditing] = useState<Profile | 'new' | null>(fromAdd ? 'new' : null);
     const [unlocking, setUnlocking] = useState<Profile | null>(null);
-    const [currentPin, setCurrentPin] = useState<string | undefined>();
-    const [pinError, setPinError] = useState('');
+    const [forgotFor, setForgotFor] = useState<Profile | null>(null);
+    const [credential, setCredential] = useState<ProfileCredential | undefined>();
+    const [unlockError, setUnlockError] = useState('');
 
     useEffect(() => {
         if (me && editing === 'new' && me.profiles.length >= MAX_PROFILES) setEditing(null);
     }, [me, editing]);
 
-    const startEdit = (profile: Profile) => {
+    // "Forgot PIN?" on Who's watching? lands here with ?forgot=<profile id>.
+    const forgotId = Number(params.get('forgot'));
+    const forgotHandled = useRef(false);
+    useEffect(() => {
+        const profile = forgotId && me?.profiles.find(p => p.id === forgotId);
+        if (profile && !forgotHandled.current) {
+            forgotHandled.current = true;
+            setForgotFor(profile);
+        }
+    }, [forgotId, me]);
+
+    const startEdit = useCallback((profile: Profile) => {
+        setUnlockError('');
         if (profile.locked) {
-            setPinError('');
             setUnlocking(profile);
         } else {
-            setCurrentPin(undefined);
+            setCredential(undefined);
             setEditing(profile);
         }
-    };
+    }, []);
 
-    // Check the PIN with a harmless no-op update before opening the editor.
-    const unlock = async (pin: string) => {
-        if (!unlocking) return;
-        try {
-            await accountsApi.updateProfile(unlocking.id, { currentPin: pin });
-            setCurrentPin(pin);
-            setEditing(unlocking);
-            setUnlocking(null);
-        } catch {
-            setPinError('Incorrect PIN. Please try again.');
-        }
-    };
+    // Check the PIN (or password) with a harmless no-op update before opening the editor.
+    const unlockWith = useCallback((profile: Profile, given: ProfileCredential, failure: string) => {
+        setUnlockError('');
+        accountsApi.updateProfile(profile.id, given)
+            .then(() => {
+                setCredential(given);
+                setEditing(profile);
+                setUnlocking(null);
+                setForgotFor(null);
+            })
+            .catch(err => setUnlockError(err?.status === 403 ? failure : errorMessage(err)));
+    }, []);
+
+    const submitPin = useCallback((pin: string) => {
+        if (unlocking) unlockWith(unlocking, { currentPin: pin }, 'Incorrect PIN. Please try again.');
+    }, [unlocking, unlockWith]);
+    const submitPassword = useCallback((password: string) => {
+        if (forgotFor) unlockWith(forgotFor, { accountPassword: password }, 'That password is incorrect.');
+    }, [forgotFor, unlockWith]);
+    const forgotPin = useCallback(() => {
+        setUnlockError('');
+        setForgotFor(unlocking);
+        setUnlocking(null);
+    }, [unlocking]);
+    const cancelUnlock = useCallback(() => {
+        setUnlocking(null);
+        setForgotFor(null);
+    }, []);
+
+    const closeEditor = useCallback(() => {
+        setEditing(null);
+        setCredential(undefined);
+        if (fromAdd) navigate('/homefin/profiles');
+    }, [fromAdd, navigate]);
+    const onSaved = useCallback((profiles: Profile[]) => {
+        if (me) setMe({ ...me, profiles });
+        closeEditor();
+    }, [me, setMe, closeEditor]);
+    const addProfile = useCallback(() => setEditing('new'), []);
+    const done = useCallback(() => navigate('/homefin/profiles'), [navigate]);
 
     if (me && editing) {
         return (
-            <Screen id='homefinManageProfilesPage' title='Edit profile' variant='plain'>
+            <Screen id='homefinManageProfilesPage' title={editing === 'new' ? 'Add profile' : 'Edit profile'} variant='plain'>
                 <ProfileEditor
                     key={editing === 'new' ? 'new' : editing.id}
                     profile={editing === 'new' ? null : editing}
                     avatars={avatars}
                     canDelete={me.profiles.length > 1}
-                    currentPin={currentPin}
-                    onSaved={profiles => {
-                        setMe({ ...me, profiles });
-                        setEditing(null);
-                        if (params.get('add')) navigate('/homefin/profiles');
-                    }}
-                    onCancel={() => {
-                        setEditing(null);
-                        if (params.get('add')) navigate('/homefin/profiles');
-                    }}
+                    credential={credential}
+                    onSaved={onSaved}
+                    onCancel={closeEditor}
                 />
             </Screen>
         );
@@ -71,39 +103,32 @@ export default function HomefinManageProfiles() {
     return (
         <Screen id='homefinManageProfilesPage' title='Manage Profiles' variant='profiles'>
             <section className='hfWho'>
-                <h1 className='hfWho-title'>Manage Profiles</h1>
+                <h1 className='hfWho-title'>Manage Profiles:</h1>
                 <ErrorBanner message={error} />
                 <ul className='hfWho-grid'>
                     {me?.profiles.map(profile => (
-                        <li key={profile.id}>
-                            <button type='button' className='hfWho-profile hfWho-editing' onClick={() => startEdit(profile)} aria-label={`Edit ${profile.name}`}>
-                                <span className='hfWho-avatarWrap'>
-                                    <Avatar avatar={findAvatar(avatars, profile.avatar)} className='hfWho-avatar' />
-                                    <span className='hfWho-pencil material-icons' aria-hidden='true'>edit</span>
-                                </span>
-                                <span className='hfWho-name'>{profile.name}</span>
-                                {profile.locked && <span className='hfWho-lock material-icons' aria-label='Locked'>lock</span>}
-                            </button>
-                        </li>
+                        <ProfileTile key={profile.id} profile={profile} avatars={avatars} onSelect={startEdit} editing />
                     ))}
-                    {me && me.profiles.length < MAX_PROFILES && (
-                        <li>
-                            <button type='button' className='hfWho-profile hfWho-add' onClick={() => setEditing('new')}>
-                                <span className='hfWho-avatar hfWho-addTile'><span className='material-icons' aria-hidden='true'>add_circle</span></span>
-                                <span className='hfWho-name'>Add Profile</span>
-                            </button>
-                        </li>
-                    )}
+                    {me && me.profiles.length < MAX_PROFILES && <AddProfileTile onAdd={addProfile} />}
                 </ul>
-                <button type='button' className='hfButton hfButton-primary' onClick={() => navigate('/homefin/profiles')}>Done</button>
+                <button type='button' className='hfButton hfButton-done' onClick={done}>Done</button>
             </section>
 
             {unlocking && (
                 <PinPad
                     title={`Enter ${unlocking.name}'s PIN to edit this profile.`}
-                    error={pinError}
-                    onSubmit={unlock}
-                    onCancel={() => setUnlocking(null)}
+                    error={unlockError}
+                    onSubmit={submitPin}
+                    onCancel={cancelUnlock}
+                    onForgot={forgotPin}
+                />
+            )}
+            {forgotFor && (
+                <PasswordPrompt
+                    title={`Forgot ${forgotFor.name}'s PIN?`}
+                    error={unlockError}
+                    onSubmit={submitPassword}
+                    onCancel={cancelUnlock}
                 />
             )}
         </Screen>

@@ -1,8 +1,8 @@
-import React, { type FormEvent, useEffect, useState } from 'react';
+import React, { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { accountsApi } from 'homefin/accounts/api';
-import { ErrorBanner, Field, Screen, errorMessage } from 'homefin/accounts/components';
+import { ErrorBanner, Field, Screen, errorMessage, useInputSetter } from 'homefin/accounts/components';
 import { activateProfile } from 'homefin/accounts/session';
 
 /** Accept an invite link: pick a name, email and password, and start watching. */
@@ -17,6 +17,9 @@ export default function HomefinJoin() {
     const [password, setPassword] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
+    const onNameChange = useInputSetter(setName);
+    const onEmailChange = useInputSetter(setEmail);
+    const onPasswordChange = useInputSetter(setPassword);
 
     useEffect(() => {
         if (!code) {
@@ -30,22 +33,20 @@ export default function HomefinJoin() {
         }).catch(() => setState('invalid'));
     }, [code]);
 
-    const submit = async (e: FormEvent) => {
+    const submit = useCallback((e: FormEvent) => {
         e.preventDefault();
         setBusy(true);
         setError('');
-        try {
-            const me = await accountsApi.acceptInvite(code, { name, email, password });
-            if (me.profiles.length === 1) {
-                await activateProfile(me.profiles[0]);
-            } else {
+        accountsApi.acceptInvite(code, { name, email, password })
+            .then(me => {
+                if (me.profiles.length === 1) return activateProfile(me.profiles[0]);
                 navigate('/homefin/profiles');
-            }
-        } catch (err) {
-            setError(errorMessage(err));
-            setBusy(false);
-        }
-    };
+            })
+            .catch(err => {
+                setError(errorMessage(err));
+                setBusy(false);
+            });
+    }, [code, name, email, password, navigate]);
 
     return (
         <Screen id='homefinJoinPage' title='Join' variant='auth'>
@@ -63,9 +64,9 @@ export default function HomefinJoin() {
                     <h1>{serverName}</h1>
                     <p className='hfAuthCard-note'>Create your account. You can add profiles for the rest of your household afterwards.</p>
                     <ErrorBanner message={error} />
-                    <Field id='hfJoinName' label='Your name' autoComplete='name' value={name} onChange={e => setName(e.target.value)} maxLength={30} required />
-                    <Field id='hfJoinEmail' label='Email address' type='email' autoComplete='username' value={email} onChange={e => setEmail(e.target.value)} required />
-                    <Field id='hfJoinPassword' label='Password (8+ characters)' type='password' autoComplete='new-password' minLength={8} value={password} onChange={e => setPassword(e.target.value)} required />
+                    <Field id='hfJoinName' label='Your name' autoComplete='name' value={name} onChange={onNameChange} maxLength={30} required />
+                    <Field id='hfJoinEmail' label='Email address' type='email' autoComplete='username' value={email} onChange={onEmailChange} required />
+                    <Field id='hfJoinPassword' label='Password (8+ characters)' type='password' autoComplete='new-password' minLength={8} value={password} onChange={onPasswordChange} required />
                     <button type='submit' className='hfButton hfButton-red hfButton-block' disabled={busy}>
                         {busy ? 'Setting up…' : 'Start watching'}
                     </button>

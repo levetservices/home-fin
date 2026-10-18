@@ -2,6 +2,7 @@ import React, { FunctionComponent, useCallback, useEffect, useState } from 'reac
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { ApiClient, ConnectResponse } from 'jellyfin-apiclient';
 
+import { isAccountsEnabled } from 'homefin/accounts/api';
 import { ConnectionState, ServerConnections } from 'lib/jellyfin-apiclient';
 
 import ConnectionErrorPage from './ConnectionErrorPage';
@@ -23,6 +24,7 @@ type AccessLevelValue = `${AccessLevel}`;
 enum BounceRoutes {
     Home = '/home',
     Login = '/login',
+    HomefinProfiles = '/homefin/profiles',
     SelectServer = '/selectserver',
     StartWizard = '/wizard/start'
 }
@@ -36,6 +38,16 @@ const ERROR_STATES = [
     ConnectionState.ServerUpdateNeeded,
     ConnectionState.Unavailable
 ];
+
+/**
+ * With Home Fin accounts on, people sign in to their account and pick a profile instead of
+ * using Jellyfin's login page, which stays reachable at /login?classic=1.
+ */
+const shouldUseHomefinSignIn = async (pathname: string, search: string) => {
+    if (pathname.startsWith('/homefin/')) return false;
+    if (pathname === BounceRoutes.Login && new URLSearchParams(search).get('classic') === '1') return false;
+    return isAccountsEnabled().catch(() => false);
+};
 
 const fetchPublicSystemInfo = async (apiClient: ApiClient) => {
     const infoResponse = await fetch(
@@ -79,6 +91,16 @@ const ConnectionRequired: FunctionComponent<ConnectionRequiredProps> = ({
                 navigate(BounceRoutes.Home);
                 return;
             case ConnectionState.ServerSignIn:
+                if (location.pathname.startsWith('/homefin/')) {
+                    // Home Fin account pages handle their own sign-in
+                    setIsLoading(false);
+                    return;
+                }
+                if (await shouldUseHomefinSignIn(location.pathname, location.search)) {
+                    console.debug('[ConnectionRequired] not logged in, redirecting to Home Fin profiles');
+                    navigate(BounceRoutes.HomefinProfiles);
+                    return;
+                }
                 // Bounce to the login page
                 if (location.pathname === BounceRoutes.Login) {
                     setIsLoading(false);
@@ -89,6 +111,14 @@ const ConnectionRequired: FunctionComponent<ConnectionRequiredProps> = ({
                 }
                 return;
             case ConnectionState.ServerSelection:
+                if (ServerConnections.getApiClients().length && await shouldUseHomefinSignIn(location.pathname, location.search)) {
+                    navigate(BounceRoutes.HomefinProfiles);
+                    return;
+                }
+                if (location.pathname.startsWith('/homefin/') && ServerConnections.getApiClients().length) {
+                    setIsLoading(false);
+                    return;
+                }
                 // Bounce to select server page
                 console.debug('[ConnectionRequired] redirecting to select server page');
                 navigateIfNotThere(BounceRoutes.SelectServer);
@@ -97,7 +127,7 @@ const ConnectionRequired: FunctionComponent<ConnectionRequiredProps> = ({
 
         console.warn('[ConnectionRequired] unhandled connection state', connectionResponse.State);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [ navigateIfNotThere, location.pathname, navigate ]);
+    }, [ navigateIfNotThere, location.pathname, location.search, navigate ]);
 
     const handleWizard = useCallback(async (firstConnection: ConnectResponse | null) => {
         const apiClient = firstConnection?.ApiClient || ServerConnections.currentApiClient();
