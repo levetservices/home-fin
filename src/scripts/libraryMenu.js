@@ -31,6 +31,7 @@ import { getParameterByName } from '../utils/url.ts';
 import datetime from '../scripts/datetime';
 import { isProfileMenuEnabled, renderKidsShortcut, renderProfileButton, toggleProfileMenu } from '../homefin/accounts/profileMenu';
 import { getDisplayName } from '../homefin/accounts/session';
+import { refreshBell, toggleBell } from '../homefin/ui/notifications';
 
 import '../elements/emby-button/paper-icon-button-light';
 
@@ -55,6 +56,7 @@ function renderHeader() {
     html += '<button is="paper-icon-button-light" class="headerAudioPlayerButton audioPlayerButton headerButton headerButtonRight hide"><span class="material-icons music_note" aria-hidden="true"></span></button>';
     html += '<button is="paper-icon-button-light" class="headerCastButton castButton headerButton headerButtonRight hide"><span class="material-icons cast" aria-hidden="true"></span></button>';
     html += '<button type="button" is="paper-icon-button-light" class="headerButton headerButtonRight headerSearchButton hide"><span class="material-icons search" aria-hidden="true"></span></button>';
+    html += '<button type="button" is="paper-icon-button-light" class="headerButton headerButtonRight headerBellButton hide" aria-haspopup="dialog" aria-expanded="false"><span class="material-icons notifications_none" aria-hidden="true"></span></button>';
     html += '<button is="paper-icon-button-light" class="headerButton headerButtonRight headerUserButton hide"><span class="material-icons person" aria-hidden="true"></span></button>';
     html += '<div class="currentTimeText hide"></div>';
     html += '</div>';
@@ -75,6 +77,7 @@ function renderHeader() {
     headerCastButton = skinHeader.querySelector('.headerCastButton');
     headerAudioPlayerButton = skinHeader.querySelector('.headerAudioPlayerButton');
     headerSearchButton = skinHeader.querySelector('.headerSearchButton');
+    headerBellButton = skinHeader.querySelector('.headerBellButton');
     headerSyncButton = skinHeader.querySelector('.headerSyncButton');
     currentTimeText = skinHeader.querySelector('.currentTimeText');
 
@@ -135,6 +138,11 @@ function retranslateUi() {
     if (headerUserButton) {
         headerUserButton.title = globalize.translate('Settings');
     }
+
+    if (headerBellButton) {
+        headerBellButton.title = 'Notifications';
+        headerBellButton.setAttribute('aria-label', 'Notifications');
+    }
 }
 
 function updateUserInHeader(user) {
@@ -176,6 +184,12 @@ function updateUserInHeader(user) {
             headerSearchButton.classList.remove('hide');
         }
 
+        if (headerBellButton && !layoutManager.tv) {
+            headerBellButton.classList.remove('hide');
+            refreshBell(headerBellButton, getCurrentApiClient() || ServerConnections.currentApiClient())
+                .catch(err => console.error('[libraryMenu] notifications failed', err));
+        }
+
         if (!layoutManager.tv) {
             headerCastButton.classList.remove('hide');
         }
@@ -200,6 +214,8 @@ function updateUserInHeader(user) {
         if (headerSearchButton) {
             headerSearchButton.classList.add('hide');
         }
+
+        headerBellButton?.classList.add('hide');
     }
 
     requiresUserRefresh = false;
@@ -238,6 +254,11 @@ function onHeaderUserButtonClick() {
     }).catch(err => console.error('[libraryMenu] profile menu failed', err));
 }
 
+function onHeaderBellButtonClick() {
+    toggleBell(headerBellButton, getCurrentApiClient() || ServerConnections.currentApiClient())
+        .catch(err => console.error('[libraryMenu] notifications failed', err));
+}
+
 function onHeaderHomeButtonClick() {
     Dashboard.navigate('home');
 }
@@ -260,6 +281,7 @@ function bindMenuEvents() {
     }
 
     headerUserButton.addEventListener('click', onHeaderUserButtonClick);
+    headerBellButton?.addEventListener('click', onHeaderBellButtonClick);
     headerHomeButton.addEventListener('click', onHeaderHomeButtonClick);
 
     if (!layoutManager.tv) {
@@ -761,6 +783,7 @@ let headerUserButton;
 let currentUser;
 let headerCastButton;
 let headerSearchButton;
+let headerBellButton;
 let headerAudioPlayerButton;
 let headerSyncButton;
 let currentTimeText;

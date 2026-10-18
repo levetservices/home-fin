@@ -1,0 +1,123 @@
+// Header bell and its "new arrivals" panel (see notifications.ts).
+
+.headerBellButton {
+    position: relative;
+}
+
+.hfBell-count {
+    position: absolute;
+    top: 0.15em;
+    right: 0.1em;
+    min-width: 1.35em;
+    height: 1.35em;
+    padding: 0 0.3em;
+    border-radius: 999px;
+    background: #e50914;
+    color: #fff;
+    font-size: 0.62em;
+    font-weight: 700;
+    line-height: 1.35em;
+    text-align: center;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.hfBell-panel {
+    position: fixed;
+    z-index: 1100;
+    width: min(25em, calc(100vw - 16px));
+    max-height: min(32em, 75vh);
+    overflow-y: auto;
+    border-top: 2px solid #e5e5e5;
+    background: rgba(0, 0, 0, 0.92);
+    color: #fff;
+    font-size: 0.9rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    animation: hfBellIn 0.15s ease-out;
+
+    ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    li + li {
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+}
+
+@keyframes hfBellIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+}
+
+.hfBell-item {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    width: 100%;
+    padding: 1em;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        outline: none;
+        background: rgba(255, 255, 255, 0.08);
+    }
+}
+
+.hfBell-art {
+    flex: 0 0 7.5em;
+    aspect-ratio: 16 / 9;
+    border-radius: 4px;
+    background-color: #2f2f2f;
+    background-size: cover;
+    background-position: center;
+}
+
+.hfBell-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+    min-width: 0;
+}
+
+.hfBell-kicker {
+    color: #b3b3b3;
+}
+
+.hfBell-title {
+    overflow: hidden;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hfBell-when {
+    color: #808080;
+    font-size: 0.85em;
+}
+
+.hfBell-item.is-new .hfBell-kicker::before {
+    content: "";
+    display: inline-block;
+    width: 0.5em;
+    height: 0.5em;
+    margin-right: 0.45em;
+    border-radius: 50%;
+    background: #e50914;
+}
+
+.hfBell-empty {
+    margin: 0;
+    padding: 1.5em 1em;
+    color: #b3b3b3;
+    text-align: center;
+}

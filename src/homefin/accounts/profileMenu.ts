@@ -52,7 +52,9 @@ export async function renderKidsShortcut(container: HTMLElement) {
     link.textContent = 'Kids';
     link.title = `Switch to ${kids.name}`;
     link.addEventListener('click', () => switchTo(kids));
-    container.prepend(link);
+    // Netflix order: search, Kids, bell, profile.
+    const before = container.querySelector('.headerBellButton:not(.hide)') || container.querySelector('.headerUserButton');
+    container.insertBefore(link, before);
 }
 
 function switchTo(profile: Profile) {
