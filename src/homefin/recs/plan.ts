@@ -29,9 +29,15 @@ export interface PlannedRow {
     alwaysShow?: boolean
 }
 
+/** Why the billboard shows this title; the kind picks the chip's icon. */
+export interface BillboardReason {
+    kind: 'love' | 'star' | 'top10' | 'new'
+    text: string
+}
+
 export interface Billboard {
     item: BaseItemDto
-    reasons: string[]
+    reasons: BillboardReason[]
 }
 
 export interface HomePlan {
@@ -98,16 +104,16 @@ class Appearances {
     }
 }
 
-function billboardReasons(pick: Scored, context: ScoreContext): string[] {
-    const reasons: string[] = [];
-    if (pick.taste >= LOVE_THRESHOLD) reasons.push('👍 We think you\'ll love this!');
+function billboardReasons(pick: Scored, context: ScoreContext): BillboardReason[] {
+    const reasons: BillboardReason[] = [];
+    if (pick.taste >= LOVE_THRESHOLD) reasons.push({ kind: 'love', text: 'We think you\'ll love this' });
     const star = pick.features.cast
         .map(name => ({ name, strength: context.profile.values.cast[name] || 0 }))
         .sort((a, b) => b.strength - a.strength)[0];
-    if (star && star.strength >= STAR_THRESHOLD) reasons.push(`🎬 Starring ${star.name}`);
-    if (pick.trendingRank) reasons.push(`🔥 #${pick.trendingRank} in ${pick.item.Type === 'Series' ? 'Series' : 'Films'} Today`);
-    if (pick.item.Type === 'Series' && context.seriesNews.get(pick.item.Id || '')?.label === 'New Season') reasons.push('✨ New Season');
-    else if (pick.freshness > 0) reasons.push('✨ New on Home Fin');
+    if (star && star.strength >= STAR_THRESHOLD) reasons.push({ kind: 'star', text: `Starring ${star.name}` });
+    if (pick.trendingRank) reasons.push({ kind: 'top10', text: `No. ${pick.trendingRank} in ${pick.item.Type === 'Series' ? 'Series' : 'Films'} Today` });
+    if (pick.item.Type === 'Series' && context.seriesNews.get(pick.item.Id || '')?.label === 'New Season') reasons.push({ kind: 'new', text: 'New Season' });
+    else if (pick.freshness > 0) reasons.push({ kind: 'new', text: 'Recently added' });
     return reasons.slice(0, 2);
 }
 

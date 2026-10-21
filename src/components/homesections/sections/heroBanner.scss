@@ -35,12 +35,24 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     background-size: cover;
     background-position: center 20%;
     cursor: pointer;
-    animation: hf-hero-art-in 1s ease both;
+    // Fade in, then drift very slowly closer while the title is on screen.
+    animation: hf-hero-art-in 1s ease both, hf-hero-drift 40s ease-out 1s both;
+    transform-origin: 70% 30%;
 }
 
 @keyframes hf-hero-art-in {
     from {
         opacity: 0;
+    }
+}
+
+@keyframes hf-hero-drift {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.06);
     }
 }
 
@@ -155,7 +167,7 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     align-items: center;
     gap: 0.4em;
     margin: 0;
-    padding: 0.5em 1.7em 0.5em 1.3em;
+    padding: 0.55em 1.7em 0.55em 1.3em;
     border-radius: 999px;
     font-size: clamp(1em, 1.15vw, 1.3em);
     font-weight: 700;
@@ -172,6 +184,7 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .homeHero-info.emby-button {
+    padding-left: 1.7em;
     background: rgba(109, 109, 110, 0.7);
     color: #fff;
     backdrop-filter: blur(6px);
@@ -198,7 +211,7 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     outline-offset: 3px;
 }
 
-// Why this title: "👍 We think you'll love this!", "🎬 Starring …".
+// Why this title: "We think you'll love this", "No. 4 in Series Today", each with a small icon.
 .homeHero-reasons {
     position: absolute;
     right: 3%;
@@ -213,13 +226,50 @@ $hero-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     animation: hf-hero-in 0.9s $hero-ease 0.3s both;
 
     li {
-        padding: 0.45em 0.95em;
-        border-radius: 999px;
-        background: rgba(20, 20, 20, 0.6);
-        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        padding: 0.45em 0.85em 0.45em 0.6em;
+        border-radius: 8px;
+        background: rgba(30, 30, 30, 0.72);
+        backdrop-filter: blur(10px);
         font-size: clamp(0.8em, 0.9vw, 1.05em);
         font-weight: 500;
         white-space: nowrap;
+    }
+}
+
+.homeHero-reasonIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35em;
+    height: 1.35em;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #e50914, #b20710);
+    color: #fff;
+    font-size: 1em;
+}
+
+// The TOP 10 tile, as on Netflix.
+.homeHero-reasonTop10 {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 1.35em;
+    height: 1.35em;
+    border-radius: 3px;
+    background: #e50914;
+    color: #fff;
+    font-size: 0.85em;
+    font-weight: 900;
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+
+    span {
+        font-size: 0.42em;
+        letter-spacing: 0.02em;
     }
 }
 

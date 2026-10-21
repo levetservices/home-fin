@@ -49,6 +49,7 @@ function setTheme(id) {
             document.getElementById('themeColor').content = info.color;
 
             Events.trigger(document, EventType.THEME_CHANGE, [ info.id ]);
+            resolve();
         });
     });
 }

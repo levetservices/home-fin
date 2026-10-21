@@ -40,6 +40,7 @@ import 'material-design-icons-iconfont';
 import '../styles/scrollstyles.scss';
 import '../styles/flexstyles.scss';
 import '../styles/headerNav.scss';
+import '../homefin/ui/motion.scss';
 
 function renderHeader() {
     let html = '';
@@ -299,6 +300,8 @@ function bindMenuEvents() {
         initHeadRoom(skinHeader);
     }
     window.addEventListener('scroll', onWindowScroll, { passive: true });
+    window.addEventListener('resize', moveNavPill, { passive: true });
+    document.fonts?.ready.then(moveNavPill).catch(() => undefined);
     Events.on(playbackManager, 'playbackstart', onPlaybackStart);
     Events.on(playbackManager, 'playbackstop', onPlaybackStop);
 }
@@ -570,9 +573,12 @@ function renderHeaderNav(views) {
         .filter((view, i, all) => all.findIndex(other => other.Id === view.Id) === i)
         .slice(0, HEADER_NAV_MAX_LIBRARIES);
 
-    let html = `<a is="emby-linkbutton" class="headerNavLink" data-nav="home" href="#/home">${escapeHtml(globalize.translate('Home'))}</a>`;
+    // The pill behind the current page's link; it slides from link to link.
+    let html = '<span class="headerNavPill" aria-hidden="true"></span>';
+    html += `<a is="emby-linkbutton" class="headerNavLink" data-nav="home" href="#/home">${escapeHtml(globalize.translate('Home'))}</a>`;
     html += libraries.map(view => `<a is="emby-linkbutton" class="headerNavLink" data-itemid="${view.Id}" href="${getItemHref(view, view.CollectionType)}">${escapeHtml(view.Name)}</a>`).join('');
     html += `<a is="emby-linkbutton" class="headerNavLink" data-nav="mylist" href="#/home?tab=1">${escapeHtml(globalize.translate('HeaderMyList'))}</a>`;
+    nav.classList.remove('has-pill', 'is-pill-ready');
     nav.innerHTML = html;
 
     const page = document.querySelector('.mainAnimatedPage:not(.hide)');
@@ -600,6 +606,27 @@ function updateHeaderNavLinks(page) {
 
     for (const link of skinHeader?.querySelectorAll('.headerNavLink') || []) {
         link.classList.toggle('headerNavLink-active', isActive(link));
+    }
+    moveNavPill();
+}
+
+/** Slide the pill under the current page's link (no slide the first time, so it doesn't fly in). */
+function moveNavPill() {
+    const nav = skinHeader?.querySelector('.headerNav');
+    const pill = nav?.querySelector('.headerNavPill');
+    if (!pill) return;
+    const active = nav.querySelector('.headerNavLink-active');
+    if (!active?.offsetWidth) {
+        pill.style.opacity = '0';
+        return;
+    }
+    pill.style.opacity = '1';
+    pill.style.width = `${active.offsetWidth}px`;
+    pill.style.height = `${active.offsetHeight}px`;
+    pill.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+    if (!nav.classList.contains('has-pill')) {
+        nav.classList.add('has-pill');
+        requestAnimationFrame(() => requestAnimationFrame(() => nav.classList.add('is-pill-ready')));
     }
 }
 

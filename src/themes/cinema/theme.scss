@@ -173,6 +173,15 @@ a,
     color: #fff;
 }
 
+/* Once the sliding pill is placed, it draws the highlight instead of the link. */
+.headerNavPill {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.headerNav.has-pill .headerNavLink.headerNavLink-active {
+    background: transparent;
+}
+
 @media all and (min-width: 64em) {
     .headerNav {
         display: flex;
@@ -869,4 +878,176 @@ body:has(.itemDetailPage:not(.hide)) .backdropContainer {
 .MuiAppBar-root {
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0)) !important;
     box-shadow: none !important;
+}
+
+/* ── Admin dashboard (Jellyfin's MUI app) in the Home Fin look ───────────
+   Colours come from the Cinema MUI scheme (themes.ts); this is shape, type and motion. */
+
+.dashboardDocument [class*="Mui"] {
+    font-family: var(--hf-font);
+}
+
+.dashboardDocument .MuiAppBar-root {
+    background: rgba(20, 20, 20, 0.94) !important;
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dashboardDocument .MuiPaper-rounded,
+.dashboardDocument .MuiCard-root,
+.dashboardDocument .MuiAlert-root {
+    border-radius: 12px;
+}
+
+.dashboardDocument .MuiMenu-paper,
+.dashboardDocument .MuiPopover-paper {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: #232323;
+}
+
+.dashboardDocument .MuiButton-root {
+    border-radius: 6px;
+    font-weight: 700;
+    box-shadow: none;
+    transition: background-color 0.2s ease, transform 0.15s ease, opacity 0.2s ease;
+}
+
+.dashboardDocument .MuiButton-root:active {
+    transform: scale(0.97);
+}
+
+.dashboardDocument .MuiChip-root,
+.dashboardDocument .MuiOutlinedInput-root,
+.dashboardDocument .MuiFilledInput-root,
+.dashboardDocument .MuiToggleButton-root,
+.dashboardDocument .MuiToggleButtonGroup-root {
+    border-radius: 6px;
+}
+
+.dashboardDocument .MuiAvatar-root {
+    border-radius: 8px;
+}
+
+/* Users without a picture: a soft grey tile rather than the bright primary colour. */
+.dashboardDocument .MuiAvatar-root:not(:has(img)) {
+    background-color: #4a4a4a;
+    color: #fff;
+}
+
+/* Cards lift a little under the pointer. */
+.dashboardDocument .MuiCard-root,
+.dashboardDocument .cardBox {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+    .dashboardDocument .MuiCard-root:hover,
+    .dashboardDocument .cardBox:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    }
+}
+
+.dashboardDocument .MuiTableCell-head {
+    font-weight: 700;
+    color: var(--hf-text-secondary);
+}
+
+/* Jellyfin's own admin pages (users, libraries, …). */
+.dashboardDocument .cardBox,
+.dashboardDocument .cardScalable,
+.dashboardDocument .paperList,
+.dashboardDocument .verticalSection-extrabottompadding {
+    border-radius: 12px;
+}
+
+.dashboardDocument h1,
+.dashboardDocument h2 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboardDocument .MuiCard-root,
+    .dashboardDocument .cardBox,
+    .dashboardDocument .MuiButton-root {
+        transition: none;
+    }
+}
+
+/* ── No Jellyfin blue: Home Fin's accents on the stock widgets ─────────── */
+
+div[data-role=controlgroup] a.ui-btn-active,
+div[data-role=controlgroup] .controlGroupButton.ui-btn-active {
+    background: #fff !important;
+    color: #141414 !important;
+}
+
+div[data-role=controlgroup] .controlGroupButton,
+div[data-role=controlgroup] a.ui-btn {
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+progress::-webkit-progress-value {
+    background-color: var(--hf-brand);
+}
+
+progress::-moz-progress-bar {
+    background-color: var(--hf-brand);
+}
+
+progress[aria-valuenow]::before,
+.playbackProgress > div,
+.iconOsdProgressInner,
+.selectionCommandsPanel,
+.mdl-radio__focus-circle {
+    background-color: var(--hf-brand);
+}
+
+.mdl-spinner__layer-1,
+.mdl-spinner__layer-2,
+.mdl-spinner__layer-3,
+.mdl-spinner__layer-4,
+.progressring-spiner {
+    border-color: var(--hf-brand);
+}
+
+.mdl-switch__input:checked + .mdl-switch__label + .mdl-switch__trackContainer > .mdl-switch__thumb {
+    background: var(--hf-brand);
+}
+
+.mdl-radio.show-focus .mdl-radio__button:focus + .mdl-radio__circles .mdl-radio__outer-circle,
+.mdl-radio.show-focus .mdl-radio__button:focus + .mdl-radio__circles .mdl-radio__inner-circle,
+.upNextDialog-countdownText {
+    color: var(--hf-brand);
+}
+
+.itemSelectionPanel {
+    border-color: var(--hf-brand);
+}
+
+.inputLabelFocused,
+.selectLabelFocused,
+.textareaLabelFocused,
+.button-accent-flat,
+.button-flat:hover {
+    color: #fff !important;
+}
+
+.listItemIcon:not(.listItemIcon-transparent) {
+    background-color: var(--hf-surface-raised);
+}
+
+.listItemImageButton:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.jstree-default .jstree-wholerow-clicked {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.alphaPickerButton-tv:focus {
+    background-color: var(--hf-brand);
 }

@@ -5,6 +5,7 @@ import type { ApiClient } from 'jellyfin-apiclient';
 import layoutManager from 'components/layoutManager';
 import { playbackManager } from 'components/playback/playbackmanager';
 import { openMoreInfo } from 'homefin/moreInfo/moreInfo';
+import type { BillboardReason } from 'homefin/recs';
 import { ratingBadgeHtml } from 'homefin/ui/rating';
 import globalize from 'lib/globalize';
 
@@ -17,11 +18,19 @@ const HEADER_GAP_PX = 10;
 /** Candidates fetched so a title with a logo (title treatment) can be preferred. */
 const CANDIDATE_COUNT = 12;
 
-/** The title to feature and why ("We think you'll love this!", "Starring …"). */
+/** The title to feature and why ("We think you'll love this", "Starring …"). */
 export interface FeaturedTitle {
     item: BaseItemDto
-    reasons: string[]
+    reasons: BillboardReason[]
 }
+
+const REASON_ICONS: Record<BillboardReason['kind'], string> = {
+    love: '<span class="material-icons homeHero-reasonIcon" aria-hidden="true">thumb_up</span>',
+    star: '<span class="material-icons homeHero-reasonIcon" aria-hidden="true">person</span>',
+    new: '<span class="material-icons homeHero-reasonIcon" aria-hidden="true">auto_awesome</span>',
+    // Netflix's little TOP 10 tile.
+    top10: '<span class="homeHero-reasonTop10" aria-hidden="true"><span>TOP</span>10</span>'
+};
 
 export interface HeroController {
     pause: () => void
@@ -76,9 +85,9 @@ function getResumeTicks(item: BaseItemDto) {
     return item.Type !== 'Series' ? item.UserData?.PlaybackPositionTicks || 0 : 0;
 }
 
-function getReasonsHtml(reasons: string[]) {
+function getReasonsHtml(reasons: BillboardReason[]) {
     if (!reasons.length) return '';
-    return '<ul class="homeHero-reasons">' + reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join('') + '</ul>';
+    return '<ul class="homeHero-reasons">' + reasons.map(reason => `<li>${REASON_ICONS[reason.kind]}<span>${escapeHtml(reason.text)}</span></li>`).join('') + '</ul>';
 }
 
 function getContentHtml({ item, reasons }: FeaturedTitle, apiClient: ApiClient) {
@@ -102,7 +111,7 @@ function getContentHtml({ item, reasons }: FeaturedTitle, apiClient: ApiClient) 
     const playLabel = globalize.translate(getResumeTicks(item) ? 'ButtonResume' : 'Play');
     html += '<div class="homeHero-actions focuscontainer-x">';
     html += `<button is="emby-button" type="button" class="homeHero-play" data-action="play"><span class="material-icons" aria-hidden="true">play_arrow</span><span>${escapeHtml(playLabel)}</span></button>`;
-    html += `<button is="emby-button" type="button" class="homeHero-info" data-action="info"><span class="material-icons" aria-hidden="true">info_outline</span><span>${escapeHtml(globalize.translate('MoreInfo'))}</span></button>`;
+    html += `<button is="emby-button" type="button" class="homeHero-info" data-action="info"><span>${escapeHtml(globalize.translate('MoreInfo'))}</span></button>`;
     html += '</div>';
     html += '</div>';
     html += getReasonsHtml(reasons);

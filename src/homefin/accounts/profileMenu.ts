@@ -4,7 +4,9 @@
 import type { UserDto } from '@jellyfin/sdk/lib/generated-client/models/user-dto';
 import escapeHtml from 'escape-html';
 
+import { ICONS, type IconName } from 'homefin/ui/icons';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
+import groupSelectionMenu from 'plugins/syncPlay/ui/groupSelectionMenu';
 import Dashboard from 'utils/dashboard';
 
 import { type QuickLink, accountsApi, getAvatars, isAccountsEnabled, requestsApi, type Profile } from './api';
@@ -80,17 +82,17 @@ export async function renderKidsShortcut(container: HTMLElement) {
     const current = getCurrentProfile();
     container.querySelector('.hfKidsLink')?.remove();
     if (!current || current.maturity === 'kids') return;
-    const kids = (await getProfiles()).find(p => p.maturity === 'kids' && p.id !== current.id);
+    const [profiles, avatars] = await Promise.all([getProfiles(), getAvatars()]);
+    const kids = profiles.find(p => p.maturity === 'kids' && p.id !== current.id);
     if (!kids) return;
     const link = document.createElement('button');
     link.type = 'button';
     link.className = 'hfKidsLink';
-    link.textContent = 'Kids';
+    link.innerHTML = avatarHtml(findAvatar(avatars, kids.avatar), 'hfAvatar hfKidsLink-avatar') + '<span>Kids</span>';
     link.title = `Switch to ${kids.name}`;
     link.addEventListener('click', () => switchTo(kids));
-    // Netflix order: search, Kids, bell, profile.
-    const before = container.querySelector('.headerBellButton:not(.hide)') || container.querySelector('.headerUserButton');
-    container.insertBefore(link, before);
+    // Netflix order: search, bell, Kids, profile.
+    container.insertBefore(link, container.querySelector('.headerUserButton'));
 }
 
 function switchTo(profile: Profile) {
@@ -128,6 +130,12 @@ export function closeProfileMenu() {
     window.removeEventListener('hashchange', closeProfileMenu);
 }
 
+/** Header buttons that live in this menu instead (Cast, SyncPlay); there when Jellyfin shows them. */
+function headerFeature(selector: string) {
+    const button = document.querySelector<HTMLElement>(selector);
+    return button && !button.classList.contains('hide') ? button : null;
+}
+
 const MENU_ROUTES: Record<string, string> = {
     manage: '#/homefin/profiles/manage',
     account: '#/homefin/account',
@@ -145,13 +153,14 @@ async function getQuickLinks(): Promise<QuickLink[]> {
 
 function linkItem(link: QuickLink) {
     return `<a class="hfProfileMenu-item" role="menuitem" data-action="link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">`
-        + `<span class="material-icons" aria-hidden="true">${escapeHtml(link.icon)}</span><span>${escapeHtml(link.name)}</span>`
-        + '<span class="material-icons hfProfileMenu-external" aria-hidden="true">open_in_new</span></a>';
+        + `<span class="hfProfileMenu-icon"><span class="material-icons" aria-hidden="true">${escapeHtml(link.icon)}</span></span>`
+        + `<span class="hfProfileMenu-label">${escapeHtml(link.name)}</span>`
+        + `<span class="hfProfileMenu-external">${ICONS.external}</span></a>`;
 }
 
-function item(action: string, icon: string, label: string, extra = '') {
-    return `<button type="button" class="hfProfileMenu-item" role="menuitem" data-action="${action}"${extra}>`
-        + `<span class="material-icons" aria-hidden="true">${icon}</span><span>${escapeHtml(label)}</span></button>`;
+function item(action: string, icon: IconName, label: string) {
+    return `<button type="button" class="hfProfileMenu-item" role="menuitem" data-action="${action}">`
+        + `<span class="hfProfileMenu-icon">${ICONS[icon]}</span><span class="hfProfileMenu-label">${escapeHtml(label)}</span></button>`;
 }
 
 async function buildMenu(user?: UserDto | null, imageUrl?: string | null) {
@@ -163,27 +172,30 @@ async function buildMenu(user?: UserDto | null, imageUrl?: string | null) {
     ]);
     const others = profiles.filter(p => p.id !== current?.id);
 
-    let html = '<div class="hfProfileMenu-arrow" aria-hidden="true"></div>';
+    let html = '';
     if (!onProfile && user?.Name) {
-        html += `<div class="hfProfileMenu-who">${await currentAvatarHtml('hfProfileMenu-avatar', user, imageUrl)}<span>${escapeHtml(user.Name)}</span></div>`;
+        html += `<div class="hfProfileMenu-who">${await currentAvatarHtml('hfProfileMenu-avatar', user, imageUrl)}<span class="hfProfileMenu-label">${escapeHtml(user.Name)}</span></div>`;
     }
     html += others.map(p => (
         `<button type="button" class="hfProfileMenu-item hfProfileMenu-profile" role="menuitem" data-action="switch" data-id="${p.id}">`
         + avatarHtml(findAvatar(avatars, p.avatar), 'hfAvatar hfProfileMenu-avatar')
-        + `<span>${escapeHtml(p.name)}</span>`
-        + (p.locked ? '<span class="material-icons hfProfileMenu-lock" aria-label="Locked">lock</span>' : '')
+        + `<span class="hfProfileMenu-label">${escapeHtml(p.name)}</span>`
+        + (p.locked ? `<span class="hfProfileMenu-lock" aria-label="Locked">${ICONS.lock}</span>` : '')
         + '</button>'
     )).join('');
     if (onProfile) {
-        html += item('manage', 'edit', 'Manage Profiles');
-        html += item('account', 'person_outline', 'Account');
+        html += item('manage', 'pencil', 'Manage Profiles');
+        html += item('account', 'person', 'Account');
     }
     html += item('tv', 'tv', 'Sign in a TV');
-    html += item('settings', 'settings', 'Settings');
+    // Cast and SyncPlay used to be header icons; Netflix's header has neither.
+    if (headerFeature('.headerCastButton')) html += item('cast', 'cast', 'Play on another device');
+    if (headerFeature('.headerSyncButton')) html += item('together', 'together', 'Watch together');
+    html += item('settings', 'gear', 'Settings');
     // What Jellyfin's sidebar used to hold for administrators.
     if (user?.Policy?.IsAdministrator) {
         html += item('dashboard', 'dashboard', 'Dashboard');
-        html += item('metadata', 'edit_note', 'Metadata Manager');
+        html += item('metadata', 'metadata', 'Metadata Manager');
     }
     if (links.length) {
         html += '<div class="hfProfileMenu-divider" role="separator"></div>';
@@ -228,7 +240,13 @@ export async function toggleProfileMenu(button: HTMLElement, user?: UserDto | nu
             return;
         }
         closeProfileMenu();
-        if (action === 'signout') {
+        if (action === 'cast') {
+            import('components/playback/playerSelectionMenu')
+                .then(({ show }) => show(button))
+                .catch(err => console.error('[Home Fin] cast menu', err));
+        } else if (action === 'together') {
+            groupSelectionMenu.show(button);
+        } else if (action === 'signout') {
             // Signs out of Home Fin too when accounts are on.
             Dashboard.logout();
         } else if (action && MENU_ROUTES[action]) {

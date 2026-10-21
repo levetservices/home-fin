@@ -1,6 +1,7 @@
 import layoutManager from 'components/layoutManager';
 import { getDisplayName } from 'homefin/accounts/session';
 import { buildHomePlan } from 'homefin/recs';
+import { revealRows } from 'homefin/ui/motion';
 import { getUserViewsQuery } from 'hooks/useUserViews';
 import globalize from 'lib/globalize';
 import { DEFAULT_SECTIONS, HomeSectionType } from 'types/homeSectionType';
@@ -109,6 +110,8 @@ export function loadSections(elem, apiClient, user, userSettings) {
 
                 elem.innerHTML = html;
                 elem.classList.add('homeSectionsContainer');
+                elem.stopReveal?.();
+                elem.stopReveal = revealRows(elem);
 
                 // One recommender run feeds the billboard and the personalised rows.
                 const plan = buildHomePlan(apiClient, getDisplayName(user));
@@ -155,6 +158,8 @@ export function loadSections(elem, apiClient, user, userSettings) {
 
 export function destroySections(elem) {
     closeHoverPreview();
+    elem.stopReveal?.();
+    elem.stopReveal = null;
     elem.querySelector('.homeHero')?.heroController?.destroy();
 
     const elems = elem.querySelectorAll('.itemsContainer');

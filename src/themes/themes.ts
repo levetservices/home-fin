@@ -66,18 +66,46 @@ const blueradiance = buildCustomColorScheme({
     }
 });
 
-/** The Home Fin "Cinema" color scheme: Netflix-style charcoal with red accents. */
+/**
+ * The Home Fin "Cinema" color scheme: Netflix-style charcoal. Primary actions are white (Netflix's
+ * Play button) so red stays for the brand and for anything destructive.
+ */
 const cinema = buildCustomColorScheme({
     palette: {
+        // Shades are set too: merged schemes keep MUI's default (blue) light / dark otherwise.
         primary: {
-            main: '#e50914'
+            main: '#ffffff',
+            light: '#ffffff',
+            dark: '#d6d6d6',
+            contrastText: '#141414'
         },
         secondary: {
-            main: '#54b9c5'
+            main: '#e50914',
+            light: '#f6121d',
+            dark: '#b20710',
+            contrastText: '#ffffff'
+        },
+        error: {
+            main: '#e50914',
+            light: '#f6121d',
+            dark: '#b20710',
+            contrastText: '#ffffff'
+        },
+        success: {
+            main: '#46d369',
+            light: '#6ee18a',
+            dark: '#2fa850',
+            contrastText: '#141414'
+        },
+        info: {
+            main: '#6d6d6e',
+            light: '#8c8c8c',
+            dark: '#4d4d4e',
+            contrastText: '#ffffff'
         },
         background: {
             default: '#141414',
-            paper: '#181818'
+            paper: '#1c1c1c'
         },
         AppBar: {
             defaultBg: '#141414'

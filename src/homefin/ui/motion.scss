@@ -1,0 +1,36 @@
+// Home Fin motion: subtle and quick, never in the way.
+
+// Each page fades in as it's shown (opacity only: a transform here would trap fixed-position children).
+.mainAnimatedPage:not(.hide) {
+    animation: hf-page-in 0.32s ease-out both;
+}
+
+@keyframes hf-page-in {
+    from {
+        opacity: 0;
+    }
+}
+
+// Home rows rise into place as they scroll into view (see motion.ts).
+.hfReveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.hfReveal.is-in {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mainAnimatedPage:not(.hide) {
+        animation: none;
+    }
+
+    .hfReveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}

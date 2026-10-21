@@ -12,7 +12,7 @@ import { type HomePlan, planHome } from './plan';
 import { type ScoreContext, type Trending, meanQuality } from './score';
 import { type History, type TasteProfile, buildProfile, collectSignals } from './taste';
 
-export type { HomePlan, PlannedRow } from './plan';
+export type { BillboardReason, HomePlan, PlannedRow } from './plan';
 
 const TASTE_TTL_MS = 30 * 60 * 1000;
 const CATALOGUE_TTL_MS = 10 * 60 * 1000;

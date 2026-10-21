@@ -138,7 +138,7 @@ describe('home plan', () => {
         const plan = planHome({ catalogue, context: context(history), profileName: 'Hayden', similarBySeed: new Map() });
 
         expect(plan.billboard?.item.Genres).toContain('Crime');
-        expect(plan.billboard?.reasons).toContain('🎬 Starring Dane Calloway');
+        expect(plan.billboard?.reasons).toContainEqual({ kind: 'star', text: 'Starring Dane Calloway' });
         const titles = plan.rows.map(row => row.title);
         expect(titles[0]).toBe('Top Picks for Hayden');
         expect(titles).toContain('Because you watched Cold Ledger');
@@ -179,6 +179,6 @@ describe('home plan', () => {
         const top10 = plan.rows.find(row => row.kind === 'top10');
         expect(top10?.title).toBe('Top 10 Series on Home Fin Today');
         expect(top10?.items.map(item => item.Id)).toEqual(shows.map(s => s.Id));
-        expect(plan.billboard?.reasons).toContain('🔥 #1 in Series Today');
+        expect(plan.billboard?.reasons).toContainEqual({ kind: 'top10', text: 'No. 1 in Series Today' });
     });
 });

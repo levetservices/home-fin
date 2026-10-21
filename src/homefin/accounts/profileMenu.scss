@@ -3,30 +3,45 @@
 .headerUserButton.hfProfileButton {
     display: inline-flex;
     align-items: center;
-    gap: 0.15em;
+    gap: 0.2em;
     width: auto;
-    padding: 0.2em 0.1em 0.2em 0.4em;
-    border-radius: 4px;
+    padding: 0.25em 0.2em 0.25em 0.3em;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+// Netflix only tints the button while its menu is open.
+.headerUserButton.hfProfileButton[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .hfProfileButton-avatar {
-    width: 2em;
-    height: 2em;
-    border-radius: 4px;
+    width: 2.1em;
+    height: 2.1em;
+    border-radius: 6px;
+    transition: transform 0.2s ease;
+}
+
+.hfProfileButton:hover .hfProfileButton-avatar {
+    transform: scale(1.06);
 }
 
 .hfProfileButton-caret {
     font-size: 1.4em !important;
     color: #fff;
-    transition: transform 0.3s ease;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .hfProfileButton[aria-expanded="true"] .hfProfileButton-caret {
     transform: rotate(180deg);
 }
 
+// "Kids": the kids profile's avatar and the word, as on Netflix.
 .hfKidsLink {
-    margin: 0 0.7em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55em;
+    margin: 0 0.9em 0 0.5em;
     padding: 0;
     border: 0;
     background: none;
@@ -34,117 +49,144 @@
     font: inherit;
     font-size: 0.92em;
     cursor: pointer;
-}
+    transition: color 0.2s ease;
 
-.hfKidsLink:hover {
-    color: #b3b3b3;
-}
-
-.hfProfileMenu {
-    position: fixed;
-    z-index: 1100;
-    min-width: 13.5em;
-    padding: 0.6em 0 0;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(0, 0, 0, 0.9);
-    color: #fff;
-    font-size: 0.9rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-    animation: hfProfileMenuIn 0.15s ease-out;
-}
-
-@keyframes hfProfileMenuIn {
-    from {
-        opacity: 0;
-        transform: translateY(-4px);
+    &:hover {
+        color: #b3b3b3;
     }
 }
 
-.hfProfileMenu-arrow {
-    position: absolute;
-    top: -0.65em;
-    right: 1.9em;
-    border: 0.45em solid transparent;
-    border-bottom-color: #e5e5e5;
+.hfKidsLink-avatar {
+    width: 2.1em;
+    height: 2.1em;
+    border-radius: 6px;
+    font-size: 1.05em;
+    transition: transform 0.2s ease;
+}
+
+.hfKidsLink:hover .hfKidsLink-avatar {
+    transform: scale(1.06);
+}
+
+// ── the menu ──────────────────────────────────────────────────────────────
+.hfProfileMenu {
+    position: fixed;
+    z-index: 1100;
+    min-width: 15.5em;
+    padding: 0.55em 0 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: #232323;
+    color: #fff;
+    font-size: 1rem;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    transform-origin: top right;
+    animation: hf-menu-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes hf-menu-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.97);
+    }
+}
+
+.hfProfileMenu-item,
+.hfProfileMenu-who {
+    display: flex;
+    align-items: center;
+    gap: 0.9em;
+    width: 100%;
+    padding: 0.6em 1.1em;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    box-sizing: border-box;
 }
 
 .hfProfileMenu-item {
-    display: flex;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+        outline: none;
+        background: rgba(255, 255, 255, 0.07);
+    }
+}
+
+// Quick links are anchors.
+a.hfProfileMenu-item {
+    text-decoration: none;
+}
+
+.hfProfileMenu-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// Icons sit in the same column as the avatars above them.
+.hfProfileMenu-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
-    gap: 0.8em;
+    justify-content: center;
+    width: 2.1rem;
+    color: #e5e5e5;
+    font-size: 1.5rem;
+
+    .material-icons {
+        font-size: 1.35rem;
+        color: #b3b3b3;
+    }
+}
+
+.hfProfileMenu-avatar {
+    flex: 0 0 auto;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 6px;
+    transition: transform 0.15s ease;
+}
+
+.hfProfileMenu-item:hover .hfProfileMenu-avatar {
+    transform: scale(1.06);
+}
+
+.hfProfileMenu-lock,
+.hfProfileMenu-external {
+    display: inline-flex;
+    margin-left: auto;
+    color: #808080;
+    font-size: 1.05rem;
+}
+
+.hfProfileMenu-divider {
+    height: 1px;
+    margin-top: 0.5em;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.hfProfileMenu-signout {
+    display: block;
     width: 100%;
-    padding: 0.45em 1em;
+    padding: 1em 1.1em;
     border: 0;
     background: none;
     color: inherit;
     font: inherit;
     text-align: left;
     cursor: pointer;
-
-    .material-icons {
-        // Same column width as the 2em avatars above.
-        width: calc(2em / 1.45);
-        font-size: 1.45em;
-        color: #b3b3b3;
-        text-align: center;
-    }
+    transition: background-color 0.15s ease;
 
     &:hover,
     &:focus-visible {
         outline: none;
-
-        span:not(.material-icons) {
-            text-decoration: underline;
-        }
-    }
-}
-
-.hfProfileMenu-avatar {
-    width: 2em;
-    height: 2em;
-    border-radius: 4px;
-}
-
-.hfProfileMenu .hfProfileMenu-lock {
-    width: auto;
-    margin-left: auto;
-    font-size: 1em;
-}
-
-// Quick links are anchors; keep them looking like the buttons, with a small "opens elsewhere" mark.
-a.hfProfileMenu-item {
-    box-sizing: border-box;
-    text-decoration: none;
-}
-
-.hfProfileMenu .hfProfileMenu-external {
-    width: auto;
-    margin-left: auto;
-    font-size: 0.95em;
-    color: #808080;
-}
-
-.hfProfileMenu-divider {
-    height: 1px;
-    margin-top: 0.6em;
-    background: rgba(255, 255, 255, 0.25);
-}
-
-.hfProfileMenu-signout {
-    display: block;
-    width: 100%;
-    padding: 0.9em 1em;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-align: center;
-    cursor: pointer;
-
-    &:hover,
-    &:focus-visible {
-        outline: none;
-        text-decoration: underline;
+        background: rgba(255, 255, 255, 0.07);
     }
 }
 
@@ -227,5 +269,17 @@ a.hfProfileMenu-item {
 
     .hfAvatar-initial {
         font-size: 0.95em;
+    }
+}
+
+// Cast and SyncPlay are in the profile menu now; the header keeps Cast only while casting.
+.skinHeader .headerCastButton:not(.castButton-active),
+.skinHeader .headerSyncButton {
+    display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hfProfileMenu {
+        animation: none;
     }
 }

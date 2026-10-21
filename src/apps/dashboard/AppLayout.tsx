@@ -9,7 +9,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 
 import AppBody from 'components/AppBody';
 import AppToolbar from 'components/toolbar/AppToolbar';
-import ServerButton from 'components/toolbar/ServerButton';
 import ElevationScroll from 'components/ElevationScroll';
 import { appRouter } from 'components/router/appRouter';
 import ThemeCss from 'components/ThemeCss';
@@ -18,6 +17,7 @@ import { useLocale } from 'hooks/useLocale';
 
 import AppTabs from './components/AppTabs';
 import DashboardNav from './components/DashboardNav';
+import HomefinBrand from './components/HomefinBrand';
 import AppDrawer from './components/drawer/AppDrawer';
 import HelpButton from './components/toolbar/HelpButton';
 import { DASHBOARD_APP_PATHS } from './routes/routes';
@@ -65,9 +65,7 @@ export const Component: FC = () => {
                                     <HelpButton />
                                 }
                             >
-                                {isMetadataManager && (
-                                    <ServerButton />
-                                )}
+                                <HomefinBrand />
 
                                 <AppTabs isDrawerOpen={isDrawerOpen} />
                             </AppToolbar>

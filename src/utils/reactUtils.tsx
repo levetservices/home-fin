@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { ApiProvider } from 'hooks/useApi';
 import { UserSettingsProvider } from 'hooks/useUserSettings';
 import { WebConfigProvider } from 'hooks/useWebConfig';
+import { ThemeStorageManager } from 'themes/themeStorageManager';
 import appTheme from 'themes/themes';
 import { queryClient } from 'utils/query/queryClient';
 
@@ -32,7 +33,7 @@ const RootContext: React.FC<React.PropsWithChildren> = ({ children }) => {
             <ApiProvider>
                 <UserSettingsProvider>
                     <WebConfigProvider>
-                        <ThemeProvider theme={appTheme} defaultMode='dark'>
+                        <ThemeProvider theme={appTheme} defaultMode='dark' storageManager={ThemeStorageManager}>
                             {children}
                         </ThemeProvider>
                     </WebConfigProvider>

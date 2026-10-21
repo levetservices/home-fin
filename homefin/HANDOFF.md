@@ -23,6 +23,9 @@ All three are built, pushed and checked in a real browser against Jellyfin
 | Account pages | `src/apps/stable/routes/homefin/{login,join,move,profiles,manage,account,admin}/index.tsx` (`move` = self-service move from a Jellyfin login), shared bits in `src/homefin/accounts/` (`api.ts`, `session.ts`, `components.tsx`, `ProfileTile.tsx`, `accounts.scss`) |
 | Routing / sign-in redirect | `src/apps/stable/routes/asyncRoutes/public.ts`, `PUBLIC_PATHS` in `src/components/router/appRouter.js` (+ `showLocalLogin`), `bounce()` in `src/components/ConnectionRequired.tsx`, `logout()` in `src/utils/dashboard.js` |
 | Header | `src/scripts/libraryMenu.js` → profile menu `src/homefin/accounts/profileMenu.{ts,scss}`, bell `src/homefin/ui/notifications.{ts,scss}`; pill nav in `src/themes/cinema/theme.scss` |
+| Motion | `src/homefin/ui/motion.{ts,scss}`: page fade on every `.mainAnimatedPage`, Home rows rise in as they scroll into view (`revealRows`, wired in `homesections.js`); the header's sliding pill is `moveNavPill()` in `libraryMenu.js` + `styles/headerNav.scss`. All respect `prefers-reduced-motion`. |
+| Line icons | `src/homefin/ui/icons.ts` (inline SVG; the Material font has no outlined set), used by the profile menu |
+| Admin Dashboard look | Cinema MUI scheme in `src/themes/themes.ts` (white primary, red for brand / destructive; every shade set so no Jellyfin blue leaks), shape/type/motion under `.dashboardDocument` and a "No Jellyfin blue" block in `src/themes/cinema/theme.scss`, wordmark `apps/dashboard/components/HomefinBrand.tsx` |
 | Admin Dashboard nav | `src/apps/dashboard/components/DashboardNav.tsx` (section menus under the header, replacing the sidebar on ≥900px; phones keep the slide-out drawer), wired in `src/apps/dashboard/AppLayout.tsx`, page offsets in `AppOverrides.scss` |
 | Requests (built-in Jellyseerr) | Service: `homefin/accounts/src/requests.mjs` (routes, approval, status), `arr.mjs` (Sonarr / Radarr v3 client); fake arr for tests and local runs: `homefin/accounts/test/fake-arr.mjs` (`node test/fake-arr.mjs 8989`). Web: page `src/apps/stable/routes/homefin/requests/`, pieces in `src/homefin/requests/` (`RequestDialog`, `RequestCard`, `RequestSuggestions` = "Not here yet" under library search), header link in `libraryMenu.js` |
 | Settings | `src/apps/stable/routes/homefin/settings/` (also serves `#/mypreferencesmenu`), sections in `src/homefin/settings/` (`PersonalSections.tsx`: profile, playback, subtitles, display, more; `AdminSections.tsx`: Sonarr / Radarr, quick links, server; `controls.tsx`: rows, switches, auto-save toast). Quick links show in the profile menu (`profileMenu.ts`) |
@@ -76,6 +79,16 @@ All three are built, pushed and checked in a real browser against Jellyfin
   every `/admin/*` route accept either a Home Fin admin account (cookie) or a
   Jellyfin administrator's own token (`X-Jellyfin-Token`), so the server owner
   doesn't need a Home Fin account to manage people. `GET /admin/me` says which.
+
+* **MUI follows the page theme.** `themes/themeStorageManager.ts` reads the
+  theme already on `<html data-theme>` and every React root (including
+  `utils/reactUtils.tsx`) uses it. Before, MUI started on "dark" and the
+  Dashboard kept Jellyfin's blue under Cinema (upstream assumes Dark is the
+  default theme). `themeManager.setTheme` now also resolves its promise.
+* **Header.** Cast and SyncPlay live in the profile menu ("Play on another
+  device", "Watch together"); the header shows Cast only while casting.
+  Order is Netflix's: search, bell, Kids (with the kids profile's avatar),
+  profile.
 
 ## Security review (done after the build)
 
