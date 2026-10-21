@@ -168,6 +168,18 @@ All JSON. `401` when no session, `404` for anything outside the account.
 | `GET  /admin/invites` · `POST /admin/invites` · `DELETE /admin/invites/:id` | admin | manage invite links (7-day default expiry) |
 | `GET  /admin/jellyfin-users` | admin | existing Jellyfin users not yet linked |
 | `POST /admin/adopt` | admin | link an existing Jellyfin user as a profile of an account (keeps their history; the service sets a new random password) |
+| `GET /requests/config` | viewer | `{ enabled, movies, tv, policy, isAdmin }` for whoever is watching |
+| `GET /requests/search?q=` | viewer | Radarr + Sonarr lookup, films and shows interleaved, each with `state` (available / partial / downloading / processing / pending / declined / failed / null) |
+| `GET /requests` | viewer | `{ mine, household }` with live state |
+| `POST /requests` | viewer | `{ type: 'movie' \| 'tv', id, seasons? }` (TMDB id for films, TVDB for shows) → pending, or sent straight to Radarr / Sonarr for admins and `auto` accounts |
+| `DELETE /requests/:id` | requester (pending) / admin | cancel |
+| `GET /admin/requests`, `POST /admin/requests/:id/approve` \| `/decline` | admin | approval queue; decline takes an optional `reason` |
+| `GET /admin/integrations`, `POST /admin/integrations/:service/test`, `PUT` / `DELETE /admin/integrations/:service` | admin | Sonarr / Radarr address, key, quality profile, root folder (tested before saving; the key is never returned) |
+| `PUT /admin/requests-settings` | admin | `{ defaultPolicy }` for plain Jellyfin users |
+| `GET /links`, `GET` / `PUT /admin/links` | viewer / admin | quick links (`audience`: admins or everyone) |
+
+"Viewer" = the caller's Jellyfin token in `X-Jellyfin-Token` (checked with
+Jellyfin's `/Users/Me`), or a Home Fin account session cookie.
 
 `device` is the browser's Jellyfin device identity (`{ id, name, client,
 version }`) so the token is issued to *that* device and shows up correctly in
@@ -193,6 +205,9 @@ in `config.json`:
 | `#/homefin/join?code=…` | Accept an invite |
 | `#/homefin/account` | Account: name, email, password; admin section if admin |
 | `#/homefin/admin` | Admin: accounts, invite links, adopt existing users |
+| `#/homefin/move` | Move a Jellyfin login to Home Fin (self-service) |
+| `#/homefin/requests` | Requests: search Sonarr / Radarr, ask for titles, admin approval queue |
+| `#/homefin/settings` (also `#/mypreferencesmenu`) | Settings: profile, playback, subtitles, display; admins also Requests (Sonarr / Radarr), Quick links, Server |
 
 Behaviour:
 

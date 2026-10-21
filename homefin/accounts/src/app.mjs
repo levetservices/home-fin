@@ -1,10 +1,11 @@
 // Home Fin accounts API: accounts → profiles (one Jellyfin user each), invites, admin, trending.
 import { AVATARS, AVATAR_KEYS, defaultAvatar } from './avatars.mjs';
 import { decrypt, encrypt, hashSecret, randomToken, sha256, verifySecret } from './crypto.mjs';
-import { MAX_PROFILES, SESSION_DAYS, toProfile } from './db.mjs';
+import { MAX_PROFILES, REQUEST_POLICIES, SESSION_DAYS, toProfile } from './db.mjs';
 import {
     HttpError, badRequest, clientIp, cookie, createRateLimiter, createRouter, notFound, parseCookies, readJson, sendJson
 } from './http.mjs';
+import { registerRequests } from './requests.mjs';
 
 export const SESSION_COOKIE = 'hf_session';
 const TRENDING_TTL_MS = 10 * 60 * 1000;
@@ -529,6 +530,10 @@ export function createApp({ store, jellyfin, key, options = {} }) {
             fields.isAdmin = !!body.isAdmin;
         }
         if (body.name !== undefined) fields.name = cleanName(body.name);
+        if (body.requestPolicy !== undefined) {
+            if (!REQUEST_POLICIES.has(body.requestPolicy)) throw badRequest('Requests must be auto, approve or off');
+            fields.requestPolicy = body.requestPolicy;
+        }
         if (body.password !== undefined) fields.passwordHash = await hashSecret(cleanPassword(body.password));
         store.updateAccount(target.id, fields);
         if (fields.disabled || fields.passwordHash) store.deleteSessionsForAccount(target.id);
@@ -625,6 +630,8 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         return { profile: toProfile(store.profileRow(accountId, id)) };
     });
 
+    registerRequests({ router, store, jellyfin, key, sessionAccountId, options });
+
     // ── dispatcher ───────────────────────────────────────────────────────
     /** Handle a request whose path has already had the API prefix removed. */
     return async function handle(req, res, path) {
@@ -646,6 +653,9 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         } catch (err) {
             if (err instanceof HttpError) {
                 sendJson(res, err.status, { error: err.message, code: err.code });
+            } else if (err.arr) {
+                // Sonarr / Radarr unreachable or unhappy: say so plainly.
+                sendJson(res, 502, { error: err.message, code: 'arr_error' });
             } else {
                 console.error('[homefin-accounts]', req.method, path, err);
                 sendJson(res, err.status === 401 || err.status === 404 ? 502 : 500, { error: 'Something went wrong talking to Jellyfin', code: 'server_error' });

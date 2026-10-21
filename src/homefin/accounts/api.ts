@@ -1,9 +1,12 @@
 // Client for the Home Fin accounts service (homefin/accounts). Same-origin, cookie session.
 import type { AuthenticationResult } from '@jellyfin/sdk/lib/generated-client/models/authentication-result';
 
+import { ServerConnections } from 'lib/jellyfin-apiclient';
 import { getHomefinAccounts } from 'scripts/settings/webSettings';
 
 export type Maturity = 'kids' | 'teen' | 'all';
+
+export type RequestPolicy = 'auto' | 'approve' | 'off';
 
 export interface Account {
     id: number
@@ -11,7 +14,79 @@ export interface Account {
     name: string
     isAdmin: boolean
     disabled: boolean
+    requestPolicy: RequestPolicy
     createdAt: string
+}
+
+export type MediaType = 'movie' | 'tv';
+
+/** Where a title stands: in the library, on its way, asked for, or turned down. */
+export type RequestState = 'available' | 'partial' | 'downloading' | 'processing' | 'pending' | 'declined' | 'failed' | null;
+
+/** A film or show from Radarr / Sonarr's search (TMDB id for films, TVDB id for shows). */
+export interface MediaResult {
+    type: MediaType
+    id: number
+    title: string
+    year: number | null
+    overview: string
+    poster: string | null
+    backdrop: string | null
+    genres: string[]
+    runtime: number | null
+    network: string | null
+    rating: string | null
+    seasons: number[] | null
+    state: RequestState
+    progress: number | null
+}
+
+export interface MediaRequest {
+    id: number
+    type: MediaType
+    mediaId: number
+    title: string
+    year: number | null
+    poster: string | null
+    seasons: number[] | null
+    status: 'pending' | 'approved' | 'declined' | 'failed' | 'available'
+    state: RequestState
+    progress: number | null
+    requestedBy: string
+    decidedBy: string | null
+    reason: string | null
+    createdAt: string
+}
+
+export interface RequestsConfig {
+    enabled: boolean
+    movies: boolean
+    tv: boolean
+    policy: RequestPolicy
+    isAdmin: boolean
+}
+
+export interface ArrSettings {
+    url: string
+    hasKey: boolean
+    qualityProfileId: number
+    rootFolderPath: string
+    languageProfileId: number | null
+}
+
+export interface ArrTestResult {
+    url: string
+    version: string
+    qualityProfiles: { id: number, name: string }[]
+    rootFolders: { path: string, freeSpace: number | null }[]
+    languageProfiles: { id: number, name: string }[]
+}
+
+export interface QuickLink {
+    name: string
+    url: string
+    icon: string
+    audience: 'admins' | 'everyone'
 }
 
 export interface Profile {
@@ -92,10 +167,16 @@ export async function isAccountsEnabled() {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const { apiPath } = await getAccountsConfig();
+    // Who is watching: lets the service tell profiles (and plain Jellyfin users) apart.
+    const token = ServerConnections.currentApiClient()?.accessToken();
     const res = await fetch(apiPath + path, {
         method,
         credentials: 'same-origin',
-        headers: method === 'GET' ? { Accept: 'application/json' } : { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+            Accept: 'application/json',
+            ...(method === 'GET' ? {} : { 'Content-Type': 'application/json' }),
+            ...(token ? { 'X-Jellyfin-Token': token } : {})
+        },
         body: method === 'GET' ? undefined : JSON.stringify(body ?? {})
     });
     const data = await res.json().catch(() => ({}));
@@ -135,7 +216,7 @@ export const accountsApi = {
         accounts: () => request<{ accounts: (Account & { profiles: Profile[] })[] }>('GET', '/admin/accounts'),
         createAccount: (fields: { name: string, email: string, password: string, isAdmin?: boolean }) =>
             request<{ account: Account & { profiles: Profile[] } }>('POST', '/admin/accounts', fields),
-        updateAccount: (id: number, fields: { disabled?: boolean, isAdmin?: boolean, password?: string, name?: string }) =>
+        updateAccount: (id: number, fields: { disabled?: boolean, isAdmin?: boolean, password?: string, name?: string, requestPolicy?: RequestPolicy }) =>
             request<{ account: Account & { profiles: Profile[] } }>('PATCH', `/admin/accounts/${id}`, fields),
         deleteAccount: (id: number) => request<{ ok: boolean }>('DELETE', `/admin/accounts/${id}`),
         invites: () => request<{ invites: Invite[] }>('GET', '/admin/invites'),
@@ -147,6 +228,47 @@ export const accountsApi = {
             request<{ profile: Profile }>('POST', '/admin/adopt', fields)
     }
 };
+
+export const requestsApi = {
+    config: () => request<RequestsConfig>('GET', '/requests/config'),
+    search: (query: string) => request<{ results: MediaResult[] }>('GET', `/requests/search?q=${encodeURIComponent(query)}`),
+    list: () => request<{ mine: MediaRequest[], household: MediaRequest[] }>('GET', '/requests'),
+    create: (type: MediaType, id: number, seasons?: number[]) => request<{ request: MediaRequest }>('POST', '/requests', { type, id, seasons }),
+    cancel: (id: number) => request<{ ok: boolean }>('DELETE', `/requests/${id}`),
+    links: () => request<{ links: QuickLink[] }>('GET', '/links'),
+
+    admin: {
+        queue: () => request<{ pending: MediaRequest[], failed: MediaRequest[], recent: MediaRequest[] }>('GET', '/admin/requests'),
+        approve: (id: number) => request<{ request: MediaRequest }>('POST', `/admin/requests/${id}/approve`),
+        decline: (id: number, reason?: string) => request<{ request: MediaRequest }>('POST', `/admin/requests/${id}/decline`, { reason }),
+        integrations: () => request<{ radarr: ArrSettings | null, sonarr: ArrSettings | null, defaultPolicy: RequestPolicy }>('GET', '/admin/integrations'),
+        testIntegration: (service: 'radarr' | 'sonarr', fields: { url: string, apiKey?: string }) =>
+            request<ArrTestResult>('POST', `/admin/integrations/${service}/test`, fields),
+        saveIntegration: (service: 'radarr' | 'sonarr', fields: { url: string, apiKey?: string, qualityProfileId?: number, rootFolderPath?: string, languageProfileId?: number | null }) =>
+            request<{ ok: boolean }>('PUT', `/admin/integrations/${service}`, fields),
+        removeIntegration: (service: 'radarr' | 'sonarr') => request<{ ok: boolean }>('DELETE', `/admin/integrations/${service}`),
+        setDefaultPolicy: (defaultPolicy: RequestPolicy) => request<{ defaultPolicy: RequestPolicy }>('PUT', '/admin/requests-settings', { defaultPolicy }),
+        links: () => request<{ links: QuickLink[] }>('GET', '/admin/links'),
+        saveLinks: (links: QuickLink[]) => request<{ links: QuickLink[] }>('PUT', '/admin/links', { links })
+    }
+};
+
+let requestsConfigCache: { userId: string, promise: Promise<RequestsConfig | null> } | null = null;
+
+/** Requests settings for whoever is watching; null when the accounts service isn't there. */
+export function getRequestsConfig(refresh = false) {
+    const userId = ServerConnections.currentApiClient()?.getCurrentUserId() || '';
+    if (refresh || requestsConfigCache?.userId !== userId) {
+        const promise = isAccountsEnabled()
+            .then(enabled => (enabled && userId ? requestsApi.config() : null))
+            .catch(() => {
+                requestsConfigCache = null;
+                return null;
+            });
+        requestsConfigCache = { userId, promise };
+    }
+    return requestsConfigCache.promise;
+}
 
 let avatarCache: Promise<AvatarPreset[]> | null = null;
 

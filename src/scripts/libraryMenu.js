@@ -31,6 +31,7 @@ import { getParameterByName } from '../utils/url.ts';
 import datetime from '../scripts/datetime';
 import { isProfileMenuEnabled, renderDrawerProfile, renderKidsShortcut, renderProfileButton, toggleProfileMenu } from '../homefin/accounts/profileMenu';
 import { getDisplayName } from '../homefin/accounts/session';
+import { getRequestsConfig } from '../homefin/accounts/api';
 import { refreshBell, toggleBell } from '../homefin/ui/notifications';
 
 import '../elements/emby-button/paper-icon-button-light';
@@ -371,6 +372,7 @@ function refreshLibraryInfoInDrawer(user) {
     html += '<div class="hfDrawerProfile"></div>';
     html += `<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder" href="#/home"><span class="material-icons navMenuOptionIcon home" aria-hidden="true"></span><span class="navMenuOptionText">${globalize.translate('Home')}</span></a>`;
     html += `<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder" href="#/home?tab=1"><span class="material-icons navMenuOptionIcon favorite" aria-hidden="true"></span><span class="navMenuOptionText">${globalize.translate('HeaderMyList')}</span></a>`;
+    html += '<div class="hfDrawerRequests"></div>';
 
     // placeholder for custom menu links
     html += '<div class="customMenuOptions"></div>';
@@ -413,6 +415,10 @@ function refreshLibraryInfoInDrawer(user) {
 
     const drawerProfile = navDrawerScrollContainer.querySelector('.hfDrawerProfile');
     if (drawerProfile && user.localUser) {
+        showRequestsLink().then(show => {
+            const slot = navDrawerScrollContainer.querySelector('.hfDrawerRequests');
+            if (slot) slot.innerHTML = show ? '<a is="emby-linkbutton" class="navMenuOption lnkMediaFolder" href="#/homefin/requests"><span class="material-icons navMenuOptionIcon playlist_add" aria-hidden="true"></span><span class="navMenuOptionText">Requests</span></a>' : '';
+        }).catch(() => undefined);
         renderDrawerProfile(drawerProfile, user.localUser, user.imageUrl)
             .catch(err => console.error('[libraryMenu] drawer profile failed', err));
     }
@@ -544,6 +550,12 @@ function updateLibraryMenu(user) {
     }
 }
 
+/** Requests (homefin/requests) get a header link when Sonarr / Radarr are set up, and always for admins. */
+async function showRequestsLink() {
+    const config = await getRequestsConfig();
+    return !!config && (config.isAdmin || (config.enabled && config.policy !== 'off'));
+}
+
 /** Library types worth a top-level link in the header (Netflix-style "TV Shows / Movies"). */
 const HEADER_NAV_TYPES = ['movies', 'tvshows', 'mixed', 'music', 'homevideos', 'livetv', 'books', 'boxsets'];
 const HEADER_NAV_MAX_LIBRARIES = 5;
@@ -565,6 +577,13 @@ function renderHeaderNav(views) {
 
     const page = document.querySelector('.mainAnimatedPage:not(.hide)');
     if (page) updateHeaderNavLinks(page);
+
+    showRequestsLink().then(show => {
+        if (!show || nav.querySelector('[data-nav="requests"]')) return;
+        nav.insertAdjacentHTML('beforeend', '<a is="emby-linkbutton" class="headerNavLink" data-nav="requests" href="#/homefin/requests">Requests</a>');
+        const current = document.querySelector('.mainAnimatedPage:not(.hide)');
+        if (current) updateHeaderNavLinks(current);
+    }).catch(() => undefined);
 }
 
 function updateHeaderNavLinks(page) {
@@ -575,6 +594,7 @@ function updateHeaderNavLinks(page) {
     const isActive = link => {
         if (link.dataset.nav === 'home') return isHome && !onFavourites;
         if (link.dataset.nav === 'mylist') return onFavourites;
+        if (link.dataset.nav === 'requests') return page.id === 'homefinRequestsPage';
         return !!topParentId && link.dataset.itemid === topParentId;
     };
 

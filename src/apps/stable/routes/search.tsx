@@ -7,6 +7,7 @@ import SearchFields from 'apps/stable/features/search/components/SearchFields';
 import SearchResults from 'apps/stable/features/search/components/SearchResults';
 import SearchSuggestions from 'apps/stable/features/search/components/SearchSuggestions';
 import Page from 'components/Page';
+import RequestSuggestions from 'homefin/requests/RequestSuggestions';
 import useSearchParam from 'hooks/useSearchParam';
 import globalize from 'lib/globalize';
 
@@ -33,11 +34,15 @@ const Search: FC = () => {
                     parentId={parentIdQuery}
                 />
             ) : (
-                <SearchResults
-                    parentId={parentIdQuery}
-                    collectionType={collectionTypeQuery}
-                    query={debouncedQuery}
-                />
+                <>
+                    <SearchResults
+                        parentId={parentIdQuery}
+                        collectionType={collectionTypeQuery}
+                        query={debouncedQuery}
+                    />
+                    {/* Home Fin: titles that aren't in the library yet, to request */}
+                    {!parentIdQuery && <RequestSuggestions query={debouncedQuery} />}
+                </>
             )}
         </Page>
     );

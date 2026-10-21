@@ -1,0 +1,523 @@
+// Home Fin settings: section menu on the left, dark panels of rows on the right. Always dark.
+
+.hfSet {
+    max-width: 72em;
+    margin: 0 auto;
+    // The page itself already clears the header.
+    padding: 0.5em 3.3% 5em;
+    color: #fff;
+
+    h1 {
+        margin: 0 0 1em;
+        font-size: clamp(1.8em, 2.6vw, 2.6em);
+        font-weight: 700;
+    }
+}
+
+.hfSet-layout {
+    display: grid;
+    grid-template-columns: 13em minmax(0, 1fr);
+    gap: 2.5em;
+    align-items: start;
+}
+
+// ── section menu ────────────────────────────────────────────────────────
+.hfSet-nav {
+    position: sticky;
+    top: 6em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15em;
+}
+
+.hfSet-navHeading {
+    margin: 1.1em 0 0.3em 0.9em;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.75em;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.hfSet-navItem {
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+    padding: 0.65em 0.9em;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: rgba(255, 255, 255, 0.7);
+    font: inherit;
+    font-size: 1em;
+    text-align: left;
+    cursor: pointer;
+
+    .material-icons {
+        font-size: 1.3em;
+    }
+
+    &:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.is-active {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.12);
+        font-weight: 700;
+    }
+}
+
+// ── panels and rows ─────────────────────────────────────────────────────
+.hfSet-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.4em;
+    animation: hf-set-in 0.25s ease-out;
+}
+
+@keyframes hf-set-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+.hfSet-panel {
+    padding: 1.4em 1.6em;
+    border-radius: 12px;
+    background: #1c1c1c;
+
+    h2 {
+        margin: 0;
+        font-size: 1.25em;
+        font-weight: 700;
+    }
+}
+
+.hfSet-panelNote {
+    margin: 0.35em 0 0;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.45;
+}
+
+.hfSet-rows {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.8em;
+}
+
+.hfSet-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5em;
+    padding: 0.9em 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: #fff;
+    text-decoration: none;
+
+    &:first-child {
+        border-top: 0;
+    }
+}
+
+.hfSet-rowText {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+    min-width: 0;
+
+    label,
+    .hfSet-rowLabel {
+        font-size: 1.02em;
+    }
+}
+
+.hfSet-rowNote,
+.hfSet-muted {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.hfSet-rowControl {
+    flex: 0 0 auto;
+}
+
+.hfSet-linkRow {
+    cursor: pointer;
+
+    > .material-icons {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    &:hover > .material-icons {
+        color: #fff;
+    }
+}
+
+.hfSet-select,
+.hfSet-field input,
+.hfSet-field select,
+.hfSet-linkEdit input,
+.hfSet-linkEdit select {
+    max-width: 22em;
+    padding: 0.55em 0.7em;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    background: #121212;
+    color: #fff;
+    font: inherit;
+}
+
+// An iOS-style switch, red when on.
+.hfSet-switch {
+    position: relative;
+    width: 2.9em;
+    height: 1.65em;
+    margin: 0;
+    border-radius: 999px;
+    background: #4a4a4a;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    appearance: none;
+
+    &::after {
+        position: absolute;
+        top: 0.2em;
+        left: 0.2em;
+        width: 1.25em;
+        height: 1.25em;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.2s ease;
+        content: "";
+    }
+
+    &:checked {
+        background: #e50914;
+
+        &::after {
+            transform: translateX(1.25em);
+        }
+    }
+
+    &:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+}
+
+.hfSet-subPreview {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 9em;
+    margin: 0.4em 0 0.6em;
+    padding-bottom: 1.2em;
+    border-radius: 8px;
+    background: linear-gradient(160deg, #3a4a5a, #1a2026 60%, #2c2219);
+    text-align: center;
+
+    span {
+        padding: 0.1em 0.35em;
+        line-height: 1.3;
+    }
+}
+
+// ── buttons ─────────────────────────────────────────────────────────────
+.hfSet-button {
+    padding: 0.55em 1.3em;
+    border: 0;
+    border-radius: 6px;
+    background: rgba(109, 109, 110, 0.7);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(109, 109, 110, 0.5);
+    }
+}
+
+.hfSet-button-primary {
+    background: #fff;
+    color: #000;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.8);
+    }
+}
+
+.hfSet-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.hfSet-linkButton {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: rgba(255, 255, 255, 0.7);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.hfSet-signOut {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.hfSet-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7em;
+    margin-top: 1em;
+}
+
+.hfSet-error {
+    margin: 0.8em 0 0;
+    color: #f59e0b;
+}
+
+// ── Sonarr / Radarr forms ───────────────────────────────────────────────
+.hfSet-arr {
+    padding: 1.1em 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+    &:first-child {
+        border-top: 0;
+    }
+}
+
+.hfSet-arrHead {
+    display: flex;
+    align-items: center;
+    gap: 0.8em;
+    margin-bottom: 0.8em;
+
+    h3 {
+        margin: 0;
+        font-size: 1.1em;
+    }
+}
+
+.hfSet-status {
+    padding: 0.2em 0.7em;
+    border-radius: 999px;
+    background: #3a3a3a;
+    font-size: 0.8em;
+    font-weight: 700;
+
+    &.is-on {
+        background: #1f9d55;
+    }
+}
+
+.hfSet-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
+    gap: 0.8em 1em;
+}
+
+.hfSet-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35em;
+
+    span {
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 0.85em;
+    }
+
+    input,
+    select {
+        max-width: none;
+    }
+}
+
+// ── quick links editor ──────────────────────────────────────────────────
+.hfSet-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+}
+
+.hfSet-linkEdit {
+    display: grid;
+    grid-template-columns: 1.6em 7.5em minmax(6em, 1fr) minmax(10em, 2fr) 7em auto;
+    gap: 0.5em;
+    align-items: center;
+
+    input,
+    select {
+        max-width: none;
+        min-width: 0;
+    }
+}
+
+.hfSet-linkIcon {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.hfSet-linkButtons {
+    display: flex;
+
+    button {
+        display: inline-flex;
+        padding: 0.3em;
+        border: 0;
+        background: none;
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+    }
+}
+
+.hfSet-presets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45em;
+    margin-top: 0.4em;
+    color: rgba(255, 255, 255, 0.6);
+
+    button {
+        padding: 0.35em 0.85em;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 999px;
+        background: none;
+        color: #fff;
+        font: inherit;
+        font-size: 0.88em;
+        cursor: pointer;
+    }
+}
+
+// States last, so they win over the base rules above.
+.hfSet-select:focus,
+.hfSet-field input:focus,
+.hfSet-field select:focus,
+.hfSet-linkEdit input:focus,
+.hfSet-linkEdit select:focus {
+    border-color: #fff;
+    outline: none;
+}
+
+.hfSet-linkButtons button:disabled,
+.hfSet-presets button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.hfSet-linkButtons button:hover:not(:disabled) {
+    color: #fff;
+}
+
+.hfSet-presets button:hover:not(:disabled) {
+    border-color: #fff;
+}
+
+// ── "Saved" toast ───────────────────────────────────────────────────────
+.hfSet-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 5.5em;
+    z-index: 1100;
+    padding: 0.6em 1.3em;
+    border-radius: 999px;
+    background: #fff;
+    color: #000;
+    font-weight: 700;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transform: translate(-50%, 12px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+
+    &.is-visible {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+
+    &.is-error {
+        background: #f59e0b;
+    }
+}
+
+// ── phones: the section menu becomes a row of chips ─────────────────────
+@media all and (max-width: 50em) {
+    .hfSet-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.2em;
+    }
+
+    .hfSet-nav {
+        position: static;
+        flex-direction: row;
+        gap: 0.4em;
+        margin: 0 -3.3vw;
+        padding: 0 3.3vw 0.3em;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .hfSet-navHeading {
+        display: none;
+    }
+
+    .hfSet-navItem {
+        flex: 0 0 auto;
+        padding: 0.45em 0.9em;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+
+        .material-icons {
+            display: none;
+        }
+
+        &.is-active {
+            border-color: #fff;
+            background: #fff;
+            color: #000;
+        }
+    }
+
+    .hfSet-panel {
+        padding: 1.1em 1.1em;
+    }
+
+    .hfSet-row {
+        flex-wrap: wrap;
+        gap: 0.6em;
+    }
+
+    // Switches stay beside their label.
+    .hfSet-row-switch {
+        flex-wrap: nowrap;
+    }
+
+    .hfSet-select {
+        max-width: 100%;
+    }
+
+    .hfSet-linkEdit {
+        grid-template-columns: 1.6em minmax(0, 1fr) minmax(0, 1fr);
+        padding-bottom: 0.6em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+        input[name="url"] {
+            grid-column: 2 / -1;
+        }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hfSet-content {
+        animation: none;
+    }
+}

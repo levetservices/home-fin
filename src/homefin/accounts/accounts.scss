@@ -1108,6 +1108,23 @@ body:has(.hfAccountsPage:not(.hide)) {
     }
 }
 
+.hfAccounts-policy {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9em;
+
+    select {
+        padding: 0.35em 0.5em;
+        border: 1px solid #555;
+        border-radius: 4px;
+        background: #121212;
+        color: #fff;
+        font: inherit;
+    }
+}
+
 .hfTable {
     align-self: stretch;
     width: 100%;

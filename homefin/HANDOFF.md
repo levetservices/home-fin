@@ -19,11 +19,13 @@ All three are built, pushed and checked in a real browser against Jellyfin
 | Area | Files |
 |---|---|
 | Deploying to a server | `homefin/deploy/README.md` + `install-web.sh` + `install-accounts.sh` (systemd service for Debian / Ubuntu; admin created over stdin, settings in `/etc/homefin/accounts.env`) (own folder + Jellyfin `--webdir` / `JELLYFIN_WEB_DIR`, update / rollback); rehearsed end to end |
-| Accounts service | `homefin/accounts/` (Node ≥ 22.5, zero deps, `npm test` = 25 tests). README = deployment. |
+| Accounts service | `homefin/accounts/` (Node ≥ 22.5, zero deps, `npm test` = 31 tests). README = deployment. |
 | Account pages | `src/apps/stable/routes/homefin/{login,join,move,profiles,manage,account,admin}/index.tsx` (`move` = self-service move from a Jellyfin login), shared bits in `src/homefin/accounts/` (`api.ts`, `session.ts`, `components.tsx`, `ProfileTile.tsx`, `accounts.scss`) |
 | Routing / sign-in redirect | `src/apps/stable/routes/asyncRoutes/public.ts`, `PUBLIC_PATHS` in `src/components/router/appRouter.js` (+ `showLocalLogin`), `bounce()` in `src/components/ConnectionRequired.tsx`, `logout()` in `src/utils/dashboard.js` |
 | Header | `src/scripts/libraryMenu.js` → profile menu `src/homefin/accounts/profileMenu.{ts,scss}`, bell `src/homefin/ui/notifications.{ts,scss}`; pill nav in `src/themes/cinema/theme.scss` |
 | Admin Dashboard nav | `src/apps/dashboard/components/DashboardNav.tsx` (section menus under the header, replacing the sidebar on ≥900px; phones keep the slide-out drawer), wired in `src/apps/dashboard/AppLayout.tsx`, page offsets in `AppOverrides.scss` |
+| Requests (built-in Jellyseerr) | Service: `homefin/accounts/src/requests.mjs` (routes, approval, status), `arr.mjs` (Sonarr / Radarr v3 client); fake arr for tests and local runs: `homefin/accounts/test/fake-arr.mjs` (`node test/fake-arr.mjs 8989`). Web: page `src/apps/stable/routes/homefin/requests/`, pieces in `src/homefin/requests/` (`RequestDialog`, `RequestCard`, `RequestSuggestions` = "Not here yet" under library search), header link in `libraryMenu.js` |
+| Settings | `src/apps/stable/routes/homefin/settings/` (also serves `#/mypreferencesmenu`), sections in `src/homefin/settings/` (`PersonalSections.tsx`: profile, playback, subtitles, display, more; `AdminSections.tsx`: Sonarr / Radarr, quick links, server; `controls.tsx`: rows, switches, auto-save toast). Quick links show in the profile menu (`profileMenu.ts`) |
 | Billboard | `src/components/homesections/sections/heroBanner.{ts,scss}` |
 | Rows / cards / hover | `src/components/homesections/rows/` (`mediaRow.ts`, `hoverPreview.ts`, `homeRows.ts`, `rows.scss`) |
 | Badges, ratings, play | `src/homefin/ui/badges.ts` (TOP 10 + ribbons), `rating.ts` (BBFC colour circles), `play.ts` (series play = next episode) |
@@ -55,6 +57,20 @@ All three are built, pushed and checked in a real browser against Jellyfin
   playing. Episodes / seasons open their series.
 * Home's default section order now puts library tiles ("My Media") last;
   people who set their own order keep it.
+
+* **Requests.** The web client sends the viewer's Jellyfin token
+  (`X-Jellyfin-Token`) to the service, which checks it with Jellyfin
+  (`/Users/Me`, cached 2 minutes): that's how a profile, a plain Jellyfin user
+  or a Jellyfin administrator is recognised. Admins (Jellyfin administrators
+  and Home Fin admin accounts) go straight through; every other Home Fin
+  account has a rule (`request_policy`: approve / auto / off) set on People;
+  plain Jellyfin users follow the default in Settings → Requests. Approving
+  adds the film to Radarr (search on add) or the show to Sonarr with only the
+  asked-for seasons monitored; a show already in Sonarr gets the extra seasons
+  monitored and searched. Status (on its way / downloading % / available) is
+  read from Radarr / Sonarr and their queues, cached a minute. Sonarr / Radarr
+  API keys are stored AES-GCM encrypted with `HOMEFIN_SECRET` and never sent
+  back to the browser.
 
 ## Security review (done after the build)
 
@@ -117,6 +133,9 @@ the secret).
 * Test media was synthetic (10-second clips, so runtimes show "1m"; every
   title "Recently Added"). Real libraries with TMDb art should look closer to
   netflix.com.
+* Requests were tested against a fake Sonarr / Radarr
+  (`test/fake-arr.mjs`) built from their v3 API docs, not real instances;
+  posters come straight from TMDB / TVDB URLs in their lookup results.
 * Not built: autoplaying billboard / hover trailers, a separate Kids home
   screen, HD / 4K badges for series (films only), content descriptors next to
   the rating circle (Jellyfin has no such data).

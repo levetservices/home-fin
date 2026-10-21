@@ -9,6 +9,8 @@ import { openDatabase } from '../src/db.mjs';
 import { clientIp } from '../src/http.mjs';
 import { createJellyfinClient } from '../src/jellyfin.mjs';
 
+import { createFakeArr } from './fake-arr.mjs';
+
 // ── fake Jellyfin ─────────────────────────────────────────────────────────
 function createFakeJellyfin() {
     const state = { users: new Map(), auths: [], logouts: [], played: new Map(), nextId: 1 };
@@ -29,6 +31,13 @@ function createFakeJellyfin() {
             if (!user || user.password !== json.Pw) return send(401, { error: 'bad' });
             state.auths.push({ user: user.Id, header: req.headers.authorization });
             return send(200, { AccessToken: `token-${user.Id}`, ServerId: 'srv', User: { Id: user.Id, Name: user.Name } });
+        }
+        if (url.pathname === '/Users/Me') {
+            const token = /Token="([^"]*)"/.exec(req.headers.authorization || '')?.[1] || '';
+            const user = state.users.get(token.replace(/^token-/, ''));
+            if (!user) return send(401, { error: 'bad token' });
+            const { password, ...u } = user;
+            return send(200, u);
         }
         if (url.pathname === '/Sessions/Logout' && req.method === 'POST') {
             state.logouts.push(req.headers.authorization);
@@ -74,6 +83,8 @@ function createFakeJellyfin() {
 
 // ── harness ───────────────────────────────────────────────────────────────
 let fake;
+let arr;
+let arrUrl;
 let jellyfinUrl;
 let api;
 let apiUrl;
@@ -117,6 +128,8 @@ async function createAccount(email, { admin = false, password = 'correct horse' 
 before(async () => {
     fake = createFakeJellyfin();
     jellyfinUrl = await listen(fake.server);
+    arr = createFakeArr();
+    arrUrl = await listen(arr.server);
 });
 
 beforeEach(async () => {
@@ -127,7 +140,7 @@ beforeEach(async () => {
     store = openDatabase(':memory:');
     const jellyfin = createJellyfinClient({ url: jellyfinUrl, apiKey: 'test-key' });
     // As deployed behind a tunnel: visitor addresses come from X-Forwarded-For.
-    const handle = createApp({ store, jellyfin, key, options: { trustProxy: true } });
+    const handle = createApp({ store, jellyfin, key, options: { trustProxy: true, libraryTtlMs: 0 } });
     api = createServer((req, res) => handle(req, res, new URL(req.url, 'http://x').pathname));
     apiUrl = await listen(api);
 });
@@ -135,6 +148,7 @@ beforeEach(async () => {
 after(() => {
     api?.close();
     fake.server.close();
+    arr.server.close();
 });
 
 // ── tests ─────────────────────────────────────────────────────────────────
@@ -474,5 +488,137 @@ describe('trending', () => {
         assert.deepEqual(res.data.series.map(s => s.id), ['showA', 'showB']);
         assert.equal(res.data.series[0].viewers, 2);
         assert.deepEqual(res.data.movies.map(m => m.id), ['m1']);
+    });
+});
+
+describe('requests (Sonarr / Radarr)', () => {
+    beforeEach(() => {
+        arr.state.movies.length = 0;
+        arr.state.series.length = 0;
+        arr.state.commands.length = 0;
+    });
+
+    async function setUp() {
+        const admin = await createAccount('owner@example.com', { admin: true });
+        assert.equal((await admin.call('PUT', '/admin/integrations/radarr', { url: `${arrUrl}/radarr`, apiKey: 'arr-key' })).status, 200);
+        assert.equal((await admin.call('PUT', '/admin/integrations/sonarr', { url: `${arrUrl}/sonarr`, apiKey: 'arr-key', qualityProfileId: 5 })).status, 200);
+        const member = await createAccount('member@example.com');
+        const profile = (await member.call('POST', '/profiles', { name: 'Sam' })).data.profile;
+        const token = (await member.call('POST', `/profiles/${profile.id}/session`, { device })).data.authentication.AccessToken;
+        // The web client sends the viewer's Jellyfin token: that's how a profile is recognised.
+        const asSam = (method, path, body) => client()(method, path, body, { 'X-Jellyfin-Token': token });
+        return { admin, member, asSam };
+    }
+
+    it('checks Sonarr / Radarr before saving, never returns the key, and is admin-only', async () => {
+        const admin = await createAccount('owner@example.com', { admin: true });
+        const bad = await admin.call('POST', '/admin/integrations/radarr/test', { url: `${arrUrl}/radarr`, apiKey: 'wrong' });
+        assert.equal(bad.status, 400);
+        assert.match(bad.data.error, /API key/);
+        const wrongApp = await admin.call('POST', '/admin/integrations/radarr/test', { url: `${arrUrl}/sonarr`, apiKey: 'arr-key' });
+        assert.match(wrongApp.data.error, /Sonarr, not Radarr/);
+        const ok = await admin.call('POST', '/admin/integrations/sonarr/test', { url: `${arrUrl}/sonarr`, apiKey: 'arr-key' });
+        assert.deepEqual(ok.data.qualityProfiles.map(p => p.name), ['HD-1080p', 'Ultra-HD']);
+        assert.deepEqual(ok.data.languageProfiles, [{ id: 1, name: 'English' }]);
+        await admin.call('PUT', '/admin/integrations/radarr', { url: `${arrUrl}/radarr/`, apiKey: 'arr-key' });
+        const saved = await admin.call('GET', '/admin/integrations');
+        assert.deepEqual(saved.data.radarr, { url: `${arrUrl}/radarr`, hasKey: true, qualityProfileId: 4, rootFolderPath: '/media/movies', languageProfileId: null });
+        assert.equal(JSON.stringify(saved.data).includes('arr-key'), false);
+        assert.equal(saved.data.sonarr, null);
+
+        const { call } = await createAccount('member@example.com');
+        assert.equal((await call('GET', '/admin/integrations')).status, 404);
+        assert.equal((await call('PUT', '/admin/integrations/radarr', { url: `${arrUrl}/radarr`, apiKey: 'arr-key' })).status, 404);
+    });
+
+    it('waits for approval, then adds the film to Radarr and tracks it to available', async () => {
+        const { admin, asSam } = await setUp();
+        const search = await asSam('GET', '/requests/search?q=matrix');
+        assert.deepEqual(search.data.results.map(r => [r.title, r.state]), [['The Matrix', null], ['The Matrix Reloaded', null]]);
+        assert.equal(search.data.results[0].poster, 'https://image.tmdb.org/t/p/w500/603.jpg');
+
+        const asked = await asSam('POST', '/requests', { type: 'movie', id: 603 });
+        assert.equal(asked.status, 200);
+        assert.equal(asked.data.request.status, 'pending');
+        assert.equal(asked.data.request.requestedBy, 'Sam');
+        assert.equal(arr.state.movies.length, 0, 'nothing sent before approval');
+        const again = await asSam('POST', '/requests', { type: 'movie', id: 603 });
+        assert.equal(again.status, 409);
+        assert.match(again.data.error, /Sam already asked/);
+
+        const queue = await admin.call('GET', '/admin/requests');
+        assert.deepEqual(queue.data.pending.map(r => r.title), ['The Matrix']);
+        const approved = await admin.call('POST', `/admin/requests/${asked.data.request.id}/approve`);
+        assert.equal(approved.status, 200);
+        assert.equal(approved.data.request.state, 'processing');
+        const [movie] = arr.state.movies;
+        assert.equal(movie.tmdbId, 603);
+        assert.equal(movie.qualityProfileId, 4);
+        assert.equal(movie.rootFolderPath, '/media/movies');
+        assert.deepEqual(movie.addOptions, { searchForMovie: true });
+
+        movie.hasFile = true;
+        const mine = await asSam('GET', '/requests');
+        assert.equal(mine.data.mine[0].status, 'available');
+        assert.equal(store.requestRow(asked.data.request.id).status, 'available', 'remembered');
+        const blocked = await asSam('POST', '/requests', { type: 'movie', id: 603 });
+        assert.equal(blocked.status, 409);
+        assert.match(blocked.data.error, /already in the library/);
+    });
+
+    it('sends trusted accounts straight through, with only the seasons asked for', async () => {
+        const { admin, member, asSam } = await setUp();
+        await admin.call('PATCH', `/admin/accounts/${member.id}`, { requestPolicy: 'auto' });
+        const asked = await asSam('POST', '/requests', { type: 'tv', id: 81189, seasons: [2, 1, 9] });
+        assert.equal(asked.status, 200);
+        assert.equal(asked.data.request.status, 'approved');
+        assert.deepEqual(asked.data.request.seasons, [1, 2]);
+        const [series] = arr.state.series;
+        assert.equal(series.qualityProfileId, 5);
+        assert.equal(series.languageProfileId, 1);
+        assert.deepEqual(series.seasons.filter(s => s.monitored).map(s => s.seasonNumber), [1, 2]);
+        assert.equal(series.addOptions.searchForMissingEpisodes, true);
+
+        // Asking for another season later adds it to the same show and searches for it.
+        const more = await asSam('POST', '/requests', { type: 'tv', id: 81189, seasons: [3] });
+        assert.equal(more.status, 200);
+        assert.deepEqual(arr.state.series[0].seasons.filter(s => s.monitored).map(s => s.seasonNumber), [1, 2, 3]);
+        assert.deepEqual(arr.state.commands.at(-1), { app: 'sonarr', name: 'SeasonSearch', seriesId: series.id, seasonNumber: 3 });
+    });
+
+    it('lets admins switch requests off per account and decline with a reason', async () => {
+        const { admin, member, asSam } = await setUp();
+        const asked = await asSam('POST', '/requests', { type: 'movie', id: 27205 });
+        const declined = await admin.call('POST', `/admin/requests/${asked.data.request.id}/decline`, { reason: 'Already on Netflix' });
+        assert.equal(declined.data.request.status, 'declined');
+        assert.equal((await asSam('GET', '/requests')).data.mine[0].reason, 'Already on Netflix');
+
+        await admin.call('PATCH', `/admin/accounts/${member.id}`, { requestPolicy: 'off' });
+        assert.equal((await asSam('GET', '/requests/config')).data.policy, 'off');
+        assert.equal((await asSam('POST', '/requests', { type: 'movie', id: 604 })).status, 403);
+        assert.equal((await admin.call('PATCH', `/admin/accounts/${member.id}`, { requestPolicy: 'sometimes' })).status, 400);
+    });
+
+    it('treats a Jellyfin administrator as an admin, and rejects unknown tokens', async () => {
+        await setUp();
+        fake.state.users.set('boss', { Id: 'boss', Name: 'boss', password: 'x', Policy: { IsAdministrator: true } });
+        const asBoss = (method, path, body) => client()(method, path, body, { 'X-Jellyfin-Token': 'token-boss' });
+        const config = await asBoss('GET', '/requests/config');
+        assert.deepEqual(config.data, { enabled: true, movies: true, tv: true, policy: 'auto', isAdmin: true });
+        assert.equal((await asBoss('POST', '/requests', { type: 'movie', id: 604 })).data.request.status, 'approved');
+        assert.equal((await asBoss('GET', '/admin/requests')).status, 200);
+        assert.equal((await client()('GET', '/requests/config', undefined, { 'X-Jellyfin-Token': 'token-nobody' })).status, 401);
+    });
+
+    it('shows quick links to admins, and only the shared ones to everyone else', async () => {
+        const { admin, asSam } = await setUp();
+        const saved = await admin.call('PUT', '/admin/links', { links: [
+            { name: 'Sonarr', url: 'http://192.168.55.40:8989', icon: 'tv' },
+            { name: 'Status', url: 'https://status.example.com', icon: 'monitor_heart', audience: 'everyone' }
+        ] });
+        assert.equal(saved.status, 200);
+        assert.deepEqual((await admin.call('GET', '/links')).data.links.map(l => l.name), ['Sonarr', 'Status']);
+        assert.deepEqual((await asSam('GET', '/links')).data.links.map(l => l.name), ['Status']);
+        assert.equal((await admin.call('PUT', '/admin/links', { links: [{ name: 'Bad', url: 'javascript:alert(1)' }] })).status, 400);
     });
 });

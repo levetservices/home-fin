@@ -1,8 +1,9 @@
 import React, { type ChangeEvent, type FC, type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 
-import { accountsApi, type Account, type AvatarPreset, type Invite, type JellyfinUserSummary, type Profile } from 'homefin/accounts/api';
+import { accountsApi, type Account, type AvatarPreset, type Invite, type JellyfinUserSummary, type Profile, type RequestPolicy } from 'homefin/accounts/api';
 import { Avatar, findAvatar } from 'homefin/accounts/avatar';
 import { ErrorBanner, Field, Screen, errorMessage, useAvatars, useInputSetter, useMe } from 'homefin/accounts/components';
+import { POLICY_OPTIONS } from 'homefin/settings/AdminSections';
 
 type AccountWithProfiles = Account & { profiles: Profile[] };
 type Run = (action: () => Promise<unknown>) => void;
@@ -59,6 +60,10 @@ const AccountRow: FC<{ account: AccountWithProfiles, avatars: AvatarPreset[], is
         const password = window.prompt(`New password for ${account.email} (8+ characters)`);
         if (password) run(() => accountsApi.admin.updateAccount(account.id, { password }));
     }, [account, run]);
+    const setPolicy = useCallback((e: ChangeEvent<HTMLSelectElement>) => {
+        const requestPolicy = e.target.value as RequestPolicy;
+        run(() => accountsApi.admin.updateAccount(account.id, { requestPolicy }));
+    }, [account, run]);
     const toggleDisabled = useCallback(() => run(() => accountsApi.admin.updateAccount(account.id, { disabled: !account.disabled })), [account, run]);
     const remove = useCallback(() => {
         if (window.confirm(`Delete ${account.email} and all of its profiles? Their watch history goes too.`)) {
@@ -83,6 +88,16 @@ const AccountRow: FC<{ account: AccountWithProfiles, avatars: AvatarPreset[], is
                 ))}
                 {!account.profiles.length && <span className='hfPanel-note'>No profiles yet</span>}
             </div>
+            <label className='hfAccounts-policy'>
+                <span>Requests</span>
+                {account.isAdmin ? (
+                    <span className='hfPanel-note'>Go straight through (admin)</span>
+                ) : (
+                    <select value={account.requestPolicy} onChange={setPolicy}>
+                        {POLICY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                )}
+            </label>
             {!isSelf && (
                 <div className='hfAccounts-actions'>
                     <button type='button' className='hfLinkButton' onClick={resetPassword}>Reset password</button>

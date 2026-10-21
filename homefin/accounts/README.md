@@ -113,6 +113,29 @@ Profiles don't have a password you can type into the Jellyfin TV or phone apps.
 Use **Quick Connect**: pick *Quick Connect* in the app, then in Home Fin open
 the profile menu → *Sign in a TV* and enter the code.
 
+## Requests (built-in Jellyseerr) and quick links
+
+Connect Radarr and Sonarr in Home Fin under **Settings → Requests** (address,
+API key from their Settings → General, quality profile and folder). Everyone
+then gets a **Requests** link in the header: search any film or show, pick
+seasons, and ask for it. Titles that aren't in the library also show up under
+*Not here yet* on the normal search page.
+
+* Admins' requests go straight through. For everyone else, choose per account
+  on **People**: *Need my approval* (default), *Go straight through* or *Can't
+  request*. People still on a Jellyfin login follow the default in Settings →
+  Requests.
+* Approved films are added to Radarr and searched for; shows are added to
+  Sonarr with only the requested seasons monitored. The Requests page shows
+  each one's progress until it's in the library.
+* The service talks to Sonarr / Radarr itself, so it needs to reach them on
+  your network (on a firewalled VM, allow outgoing connections to their
+  ports).
+
+**Quick links** (Settings → Quick links) put Sonarr, Radarr, Prowlarr,
+qBittorrent and the rest of your stack in the profile menu. Admins see all of
+them; mark a link *Everyone* to show it to the household too.
+
 ## Environment
 
 | Variable | Default | |

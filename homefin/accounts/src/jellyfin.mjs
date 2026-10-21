@@ -82,6 +82,9 @@ export function createJellyfinClient({ url, apiKey, fetchImpl = fetch }) {
             method: 'POST', auth: 'device', device, body: { Username: username, Pw: password }
         }),
 
+        /** The user a viewer's own token belongs to (proves who is asking). */
+        me: token => call('/Users/Me', { auth: 'token', token }),
+
         /** End the session behind a token (e.g. one used only to check a password). */
         logout: token => call('/Sessions/Logout', { method: 'POST', auth: 'token', token }),
 

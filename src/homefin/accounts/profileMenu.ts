@@ -7,7 +7,7 @@ import escapeHtml from 'escape-html';
 import { ServerConnections } from 'lib/jellyfin-apiclient';
 import Dashboard from 'utils/dashboard';
 
-import { accountsApi, getAvatars, isAccountsEnabled, type Profile } from './api';
+import { type QuickLink, accountsApi, getAvatars, isAccountsEnabled, requestsApi, type Profile } from './api';
 import { avatarHtml, findAvatar } from './avatar';
 import { activateProfile, getCurrentProfile } from './session';
 
@@ -132,10 +132,22 @@ const MENU_ROUTES: Record<string, string> = {
     manage: '#/homefin/profiles/manage',
     account: '#/homefin/account',
     tv: '#/quickconnect',
-    settings: '#/mypreferencesmenu',
+    settings: '#/homefin/settings',
     dashboard: '#/dashboard',
     metadata: '#/metadata'
 };
+
+/** Quick links to the rest of the stack (Settings → Quick links); none without the accounts service. */
+async function getQuickLinks(): Promise<QuickLink[]> {
+    if (!(await isAccountsEnabled().catch(() => false))) return [];
+    return requestsApi.links().then(result => result.links).catch(() => []);
+}
+
+function linkItem(link: QuickLink) {
+    return `<a class="hfProfileMenu-item" role="menuitem" data-action="link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">`
+        + `<span class="material-icons" aria-hidden="true">${escapeHtml(link.icon)}</span><span>${escapeHtml(link.name)}</span>`
+        + '<span class="material-icons hfProfileMenu-external" aria-hidden="true">open_in_new</span></a>';
+}
 
 function item(action: string, icon: string, label: string, extra = '') {
     return `<button type="button" class="hfProfileMenu-item" role="menuitem" data-action="${action}"${extra}>`
@@ -145,7 +157,10 @@ function item(action: string, icon: string, label: string, extra = '') {
 async function buildMenu(user?: UserDto | null, imageUrl?: string | null) {
     const onProfile = await isProfileMenuEnabled();
     const current = onProfile ? getCurrentProfile() : null;
-    const [profiles, avatars] = onProfile ? await Promise.all([getProfiles(), getAvatars()]) : [[], []];
+    const [[profiles, avatars], links] = await Promise.all([
+        onProfile ? Promise.all([getProfiles(), getAvatars()]) : Promise.resolve([[], []] as [Profile[], never[]]),
+        getQuickLinks()
+    ]);
     const others = profiles.filter(p => p.id !== current?.id);
 
     let html = '<div class="hfProfileMenu-arrow" aria-hidden="true"></div>';
@@ -169,6 +184,10 @@ async function buildMenu(user?: UserDto | null, imageUrl?: string | null) {
     if (user?.Policy?.IsAdministrator) {
         html += item('dashboard', 'dashboard', 'Dashboard');
         html += item('metadata', 'edit_note', 'Metadata Manager');
+    }
+    if (links.length) {
+        html += '<div class="hfProfileMenu-divider" role="separator"></div>';
+        html += links.map(linkItem).join('');
     }
     html += '<div class="hfProfileMenu-divider" role="separator"></div>';
     html += `<button type="button" class="hfProfileMenu-signout" role="menuitem" data-action="signout">${onProfile ? 'Sign out of Home Fin' : 'Sign out'}</button>`;
@@ -198,6 +217,11 @@ export async function toggleProfileMenu(button: HTMLElement, user?: UserDto | nu
         const target = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
         if (!target) return;
         const action = target.dataset.action;
+        if (action === 'link') {
+            // Let the link open (new tab) before the menu goes.
+            setTimeout(closeProfileMenu);
+            return;
+        }
         if (action === 'switch') {
             const profile = profiles.find(p => String(p.id) === target.dataset.id);
             if (profile) switchTo(profile);

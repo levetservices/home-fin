@@ -111,6 +111,19 @@
     font-size: 1em;
 }
 
+// Quick links are anchors; keep them looking like the buttons, with a small "opens elsewhere" mark.
+a.hfProfileMenu-item {
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+.hfProfileMenu .hfProfileMenu-external {
+    width: auto;
+    margin-left: auto;
+    font-size: 0.95em;
+    color: #808080;
+}
+
 .hfProfileMenu-divider {
     height: 1px;
     margin-top: 0.6em;
