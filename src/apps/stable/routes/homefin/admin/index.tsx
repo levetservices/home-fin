@@ -1,8 +1,9 @@
 import React, { type ChangeEvent, type FC, type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { accountsApi, type Account, type AvatarPreset, type Invite, type JellyfinUserSummary, type Profile, type RequestPolicy } from 'homefin/accounts/api';
+import { AccountsError, accountsApi, type Account, type AvatarPreset, type Invite, type JellyfinUserSummary, type Profile, type RequestPolicy } from 'homefin/accounts/api';
 import { Avatar, findAvatar } from 'homefin/accounts/avatar';
-import { ErrorBanner, Field, Screen, errorMessage, useAvatars, useInputSetter, useMe } from 'homefin/accounts/components';
+import { ErrorBanner, Field, Screen, errorMessage, fireAndForget, useAvatars, useInputSetter } from 'homefin/accounts/components';
 import { POLICY_OPTIONS } from 'homefin/settings/AdminSections';
 
 type AccountWithProfiles = Account & { profiles: Profile[] };
@@ -139,7 +140,9 @@ const EMPTY_FORM = { name: '', email: '', password: '' };
 
 /** Server owner tools: invite links, accounts, existing Jellyfin users. */
 export default function HomefinAdmin() {
-    const { me } = useMe();
+    const navigate = useNavigate();
+    // A Home Fin admin account, or a Jellyfin administrator on their own Jellyfin login.
+    const [admin, setAdmin] = useState<{ name: string, accountId: number | null } | null | 'denied'>(null);
     const avatars = useAvatars();
     const [accounts, setAccounts] = useState<AccountWithProfiles[]>([]);
     const [invites, setInvites] = useState<Invite[]>([]);
@@ -163,8 +166,17 @@ export default function HomefinAdmin() {
     }, []);
 
     useEffect(() => {
-        if (me?.account.isAdmin) load().catch(err => setError(errorMessage(err)));
-    }, [me, load]);
+        fireAndForget(accountsApi.admin.me()
+            .then(async who => {
+                setAdmin(who);
+                await load();
+            })
+            .catch(err => {
+                if (err instanceof AccountsError && err.status === 401) navigate('/homefin/login');
+                else if (err instanceof AccountsError && err.status === 404) setAdmin('denied');
+                else setError(errorMessage(err));
+            }));
+    }, [load, navigate]);
 
     const run = useCallback<Run>(action => {
         setError('');
@@ -207,12 +219,19 @@ export default function HomefinAdmin() {
         if (newInvite) selectInvite();
     }, [newInvite, selectInvite]);
 
-    if (me && !me.account.isAdmin) {
+    if (admin === 'denied') {
         return <Screen id='homefinAdminPage' title='Admin'><section className='hfAccount'><h1>Not available</h1></section></Screen>;
     }
 
     return (
-        <Screen id='homefinAdminPage' title='Admin' variant='plain' headerRight={<a className='hfScreen-back' href='#/homefin/account'>Back to account</a>}>
+        <Screen
+            id='homefinAdminPage'
+            title='Admin'
+            variant='plain'
+            headerRight={admin?.accountId ?
+                <a className='hfScreen-back' href='#/homefin/account'>Back to account</a> :
+                <a className='hfScreen-back' href='#/homefin/settings?section=server'>Back to settings</a>}
+        >
             <section className='hfAccount hfAdmin'>
                 <h1>People</h1>
                 <ErrorBanner message={error} />
@@ -255,7 +274,7 @@ export default function HomefinAdmin() {
                     )}
                     <ul className='hfAccounts'>
                         {accounts.map(account => (
-                            <AccountRow key={account.id} account={account} avatars={avatars} isSelf={account.id === me?.account.id} run={run} />
+                            <AccountRow key={account.id} account={account} avatars={avatars} isSelf={account.id === admin?.accountId} run={run} />
                         ))}
                     </ul>
                 </div>

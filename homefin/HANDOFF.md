@@ -19,7 +19,7 @@ All three are built, pushed and checked in a real browser against Jellyfin
 | Area | Files |
 |---|---|
 | Deploying to a server | `homefin/deploy/README.md` + `install-web.sh` + `install-accounts.sh` (systemd service for Debian / Ubuntu; admin created over stdin, settings in `/etc/homefin/accounts.env`) (own folder + Jellyfin `--webdir` / `JELLYFIN_WEB_DIR`, update / rollback); rehearsed end to end |
-| Accounts service | `homefin/accounts/` (Node ≥ 22.5, zero deps, `npm test` = 31 tests). README = deployment. |
+| Accounts service | `homefin/accounts/` (Node ≥ 22.5, zero deps, `npm test` = 32 tests). README = deployment. |
 | Account pages | `src/apps/stable/routes/homefin/{login,join,move,profiles,manage,account,admin}/index.tsx` (`move` = self-service move from a Jellyfin login), shared bits in `src/homefin/accounts/` (`api.ts`, `session.ts`, `components.tsx`, `ProfileTile.tsx`, `accounts.scss`) |
 | Routing / sign-in redirect | `src/apps/stable/routes/asyncRoutes/public.ts`, `PUBLIC_PATHS` in `src/components/router/appRouter.js` (+ `showLocalLogin`), `bounce()` in `src/components/ConnectionRequired.tsx`, `logout()` in `src/utils/dashboard.js` |
 | Header | `src/scripts/libraryMenu.js` → profile menu `src/homefin/accounts/profileMenu.{ts,scss}`, bell `src/homefin/ui/notifications.{ts,scss}`; pill nav in `src/themes/cinema/theme.scss` |
@@ -71,6 +71,11 @@ All three are built, pushed and checked in a real browser against Jellyfin
   read from Radarr / Sonarr and their queues, cached a minute. Sonarr / Radarr
   API keys are stored AES-GCM encrypted with `HOMEFIN_SECRET` and never sent
   back to the browser.
+
+* **Admin pages for Jellyfin administrators.** People (`#/homefin/admin`) and
+  every `/admin/*` route accept either a Home Fin admin account (cookie) or a
+  Jellyfin administrator's own token (`X-Jellyfin-Token`), so the server owner
+  doesn't need a Home Fin account to manage people. `GET /admin/me` says which.
 
 ## Security review (done after the build)
 

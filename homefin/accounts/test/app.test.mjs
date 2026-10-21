@@ -373,6 +373,22 @@ describe('invites and admin', () => {
         assert.equal((await again('POST', `/invites/${code}/accept`, { name: 'X', email: 'x@example.com', password: 'whatever1' })).status, 410);
     });
 
+    it('lets a Jellyfin administrator run People with their own Jellyfin login', async () => {
+        await createAccount('member@example.com');
+        fake.state.users.set('boss', { Id: 'boss', Name: 'boss', password: 'x', Policy: { IsAdministrator: true } });
+        fake.state.users.set('pleb', { Id: 'pleb', Name: 'pleb', password: 'x', Policy: { IsAdministrator: false } });
+        const asBoss = (method, path, body) => client()(method, path, body, { 'X-Jellyfin-Token': 'token-boss' });
+        assert.deepEqual((await asBoss('GET', '/admin/me')).data, { name: 'boss', accountId: null });
+        assert.deepEqual((await asBoss('GET', '/admin/accounts')).data.accounts.map(a => a.email), ['member@example.com']);
+        const invite = await asBoss('POST', '/admin/invites', { baseUrl: 'https://tv.example.com/web/' });
+        assert.equal(invite.status, 200);
+        const member = store.accountRowByEmail('member@example.com');
+        assert.equal((await asBoss('PATCH', `/admin/accounts/${member.id}`, { requestPolicy: 'auto' })).status, 200);
+
+        assert.equal((await client()('GET', '/admin/accounts', undefined, { 'X-Jellyfin-Token': 'token-pleb' })).status, 404);
+        assert.equal((await client()('GET', '/admin/accounts')).status, 401);
+    });
+
     it('hides admin routes from everyone else', async () => {
         const user = await createAccount('user@example.com');
         assert.equal((await user.call('GET', '/admin/accounts')).status, 404);

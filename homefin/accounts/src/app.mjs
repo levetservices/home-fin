@@ -113,11 +113,25 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         return account;
     }
 
-    function requireAdmin(req) {
-        const account = requireAccount(req);
-        if (!account.isAdmin) throw notFound();
-        return account;
+    /**
+     * An admin: a Home Fin admin account (signed in by cookie), or a Jellyfin administrator using
+     * their own Jellyfin login (no Home Fin account needed). A Jellyfin admin has no account id.
+     */
+    async function requireAdmin(req) {
+        const accountId = sessionAccountId(req);
+        const account = accountId && store.account(accountId);
+        if (account?.isAdmin && !account.disabled) return account;
+        if (req.headers['x-jellyfin-token']) {
+            const who = await viewer.identify(req);
+            if (who.isAdmin) return { id: who.accountId, name: who.name, isAdmin: true };
+            throw notFound();
+        }
+        if (!account || account.disabled) throw new HttpError(401, 'Sign in to continue', 'signed_out');
+        throw notFound();
     }
+
+    // Requests, Sonarr / Radarr and quick links; also tells who's watching from their Jellyfin token.
+    const viewer = registerRequests({ router, store, jellyfin, key, sessionAccountId, options });
 
     function meBody(account) {
         return { account, profiles: store.profiles(account.id) };
@@ -493,13 +507,19 @@ export function createApp({ store, jellyfin, key, options = {} }) {
     });
 
     // ── routes: admin ────────────────────────────────────────────────────
-    router.add('GET', '/admin/accounts', req => {
-        requireAdmin(req);
+    /** Who is using the admin pages: a Home Fin admin account or a Jellyfin administrator. */
+    router.add('GET', '/admin/me', async req => {
+        const admin = await requireAdmin(req);
+        return { name: admin.name, accountId: admin.id ?? null };
+    });
+
+    router.add('GET', '/admin/accounts', async req => {
+        await requireAdmin(req);
         return { accounts: store.listAccounts().map(account => ({ ...account, profiles: store.profiles(account.id) })) };
     });
 
     router.add('POST', '/admin/accounts', async req => {
-        requireAdmin(req);
+        await requireAdmin(req);
         const body = await readJson(req);
         const name = cleanName(body.name);
         const email = cleanEmail(body.email);
@@ -516,7 +536,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
     });
 
     router.add('PATCH', '/admin/accounts/:id', async (req, res, { id }) => {
-        const admin = requireAdmin(req);
+        const admin = await requireAdmin(req);
         const target = store.account(Number(id));
         if (!target) throw notFound('Account not found');
         const body = await readJson(req);
@@ -543,7 +563,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
     });
 
     router.add('DELETE', '/admin/accounts/:id', async (req, res, { id }) => {
-        const admin = requireAdmin(req);
+        const admin = await requireAdmin(req);
         const target = store.account(Number(id));
         if (!target) throw notFound('Account not found');
         if (target.id === admin.id) throw badRequest("You can't delete your own account");
@@ -552,8 +572,8 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         return { ok: true };
     });
 
-    router.add('GET', '/admin/invites', req => {
-        requireAdmin(req);
+    router.add('GET', '/admin/invites', async req => {
+        await requireAdmin(req);
         const invites = store.listInvites().map(i => ({
             id: i.id, email: i.email, note: i.note, expiresAt: i.expires_at, usedAt: i.used_at, usedBy: i.used_by, createdAt: i.created_at
         }));
@@ -561,7 +581,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
     });
 
     router.add('POST', '/admin/invites', async req => {
-        const admin = requireAdmin(req);
+        const admin = await requireAdmin(req);
         const body = await readJson(req);
         const days = Math.min(Math.max(Number(body.days) || INVITE_DAYS, 1), 30);
         const email = body.email ? cleanEmail(body.email) : null;
@@ -581,14 +601,14 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         return { invite: { id, email, note, expiresAt, code, url: `${base}#/homefin/join?code=${encodeURIComponent(code)}` } };
     });
 
-    router.add('DELETE', '/admin/invites/:id', (req, res, { id }) => {
-        requireAdmin(req);
+    router.add('DELETE', '/admin/invites/:id', async (req, res, { id }) => {
+        await requireAdmin(req);
         store.deleteInvite(Number(id));
         return { ok: true };
     });
 
     router.add('GET', '/admin/jellyfin-users', async req => {
-        requireAdmin(req);
+        await requireAdmin(req);
         const linked = new Set(store.allProfileRows().map(p => p.jellyfin_user_id));
         const users = await jellyfin.listUsers();
         return {
@@ -599,7 +619,7 @@ export function createApp({ store, jellyfin, key, options = {} }) {
     });
 
     router.add('POST', '/admin/adopt', async req => {
-        requireAdmin(req);
+        await requireAdmin(req);
         const body = await readJson(req);
         const accountId = Number(body.accountId);
         const owner = store.account(accountId);
@@ -629,8 +649,6 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         });
         return { profile: toProfile(store.profileRow(accountId, id)) };
     });
-
-    registerRequests({ router, store, jellyfin, key, sessionAccountId, options });
 
     // ── dispatcher ───────────────────────────────────────────────────────
     /** Handle a request whose path has already had the API prefix removed. */

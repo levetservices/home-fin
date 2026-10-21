@@ -213,6 +213,8 @@ export const accountsApi = {
         request<Me>('POST', `/invites/${encodeURIComponent(code)}/accept`, fields),
 
     admin: {
+        /** Who is using the admin pages; accountId is null for a Jellyfin administrator without a Home Fin account. */
+        me: () => request<{ name: string, accountId: number | null }>('GET', '/admin/me'),
         accounts: () => request<{ accounts: (Account & { profiles: Profile[] })[] }>('GET', '/admin/accounts'),
         createAccount: (fields: { name: string, email: string, password: string, isAdmin?: boolean }) =>
             request<{ account: Account & { profiles: Profile[] } }>('POST', '/admin/accounts', fields),
