@@ -385,14 +385,14 @@ describe('invites and admin', () => {
         const member = store.accountRowByEmail('member@example.com');
         assert.equal((await asBoss('PATCH', `/admin/accounts/${member.id}`, { requestPolicy: 'auto' })).status, 200);
 
-        assert.equal((await client()('GET', '/admin/accounts', undefined, { 'X-Jellyfin-Token': 'token-pleb' })).status, 404);
+        assert.equal((await client()('GET', '/admin/accounts', undefined, { 'X-Jellyfin-Token': 'token-pleb' })).status, 403);
         assert.equal((await client()('GET', '/admin/accounts')).status, 401);
     });
 
     it('hides admin routes from everyone else', async () => {
         const user = await createAccount('user@example.com');
-        assert.equal((await user.call('GET', '/admin/accounts')).status, 404);
-        assert.equal((await user.call('POST', '/admin/invites', {})).status, 404);
+        assert.equal((await user.call('GET', '/admin/accounts')).status, 403);
+        assert.equal((await user.call('POST', '/admin/invites', {})).status, 403);
     });
 
     it('creates accounts and adopts existing non-admin Jellyfin users', async () => {
@@ -543,8 +543,8 @@ describe('requests (Sonarr / Radarr)', () => {
         assert.equal(saved.data.sonarr, null);
 
         const { call } = await createAccount('member@example.com');
-        assert.equal((await call('GET', '/admin/integrations')).status, 404);
-        assert.equal((await call('PUT', '/admin/integrations/radarr', { url: `${arrUrl}/radarr`, apiKey: 'arr-key' })).status, 404);
+        assert.equal((await call('GET', '/admin/integrations')).status, 403);
+        assert.equal((await call('PUT', '/admin/integrations/radarr', { url: `${arrUrl}/radarr`, apiKey: 'arr-key' })).status, 403);
     });
 
     it('waits for approval, then adds the film to Radarr and tracks it to available', async () => {

@@ -10,6 +10,8 @@ export class HttpError extends Error {
 
 export const badRequest = (message, code) => new HttpError(400, message, code);
 export const notFound = (message = 'Not found') => new HttpError(404, message, 'not_found');
+/** Signed in, but not as an admin. A 403 (not 404) so the web client can tell this from a service too old to have the route. */
+export const notAdmin = () => new HttpError(403, 'This needs an administrator: a Jellyfin administrator or a Home Fin admin account', 'not_admin');
 
 const MAX_BODY = 64 * 1024;
 

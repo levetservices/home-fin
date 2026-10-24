@@ -3,7 +3,7 @@ import { AVATARS, AVATAR_KEYS, defaultAvatar } from './avatars.mjs';
 import { decrypt, encrypt, hashSecret, randomToken, sha256, verifySecret } from './crypto.mjs';
 import { MAX_PROFILES, REQUEST_POLICIES, SESSION_DAYS, toProfile } from './db.mjs';
 import {
-    HttpError, badRequest, clientIp, cookie, createRateLimiter, createRouter, notFound, parseCookies, readJson, sendJson
+    HttpError, badRequest, clientIp, cookie, createRateLimiter, createRouter, notAdmin, notFound, parseCookies, readJson, sendJson
 } from './http.mjs';
 import { registerRequests } from './requests.mjs';
 
@@ -124,10 +124,10 @@ export function createApp({ store, jellyfin, key, options = {} }) {
         if (req.headers['x-jellyfin-token']) {
             const who = await viewer.identify(req);
             if (who.isAdmin) return { id: who.accountId, name: who.name, isAdmin: true };
-            throw notFound();
+            throw notAdmin();
         }
         if (!account || account.disabled) throw new HttpError(401, 'Sign in to continue', 'signed_out');
-        throw notFound();
+        throw notAdmin();
     }
 
     // Requests, Sonarr / Radarr and quick links; also tells who's watching from their Jellyfin token.

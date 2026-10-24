@@ -142,7 +142,7 @@ const EMPTY_FORM = { name: '', email: '', password: '' };
 export default function HomefinAdmin() {
     const navigate = useNavigate();
     // A Home Fin admin account, or a Jellyfin administrator on their own Jellyfin login.
-    const [admin, setAdmin] = useState<{ name: string, accountId: number | null } | null | 'denied'>(null);
+    const [admin, setAdmin] = useState<{ name: string, accountId: number | null } | null | 'denied' | 'outdated'>(null);
     const avatars = useAvatars();
     const [accounts, setAccounts] = useState<AccountWithProfiles[]>([]);
     const [invites, setInvites] = useState<Invite[]>([]);
@@ -173,7 +173,9 @@ export default function HomefinAdmin() {
             })
             .catch(err => {
                 if (err instanceof AccountsError && err.status === 401) navigate('/homefin/login');
-                else if (err instanceof AccountsError && err.status === 404) setAdmin('denied');
+                else if (err instanceof AccountsError && err.status === 403) setAdmin('denied');
+                // The route itself is missing: the server's accounts service predates this page.
+                else if (err instanceof AccountsError && err.status === 404) setAdmin('outdated');
                 else setError(errorMessage(err));
             }));
     }, [load, navigate]);
@@ -219,8 +221,29 @@ export default function HomefinAdmin() {
         if (newInvite) selectInvite();
     }, [newInvite, selectInvite]);
 
-    if (admin === 'denied') {
-        return <Screen id='homefinAdminPage' title='Admin'><section className='hfAccount'><h1>Not available</h1></section></Screen>;
+    if (admin === 'denied' || admin === 'outdated') {
+        return (
+            <Screen id='homefinAdminPage' title='Admin' variant='plain' headerRight={<a className='hfScreen-back' href='#/home'>Back to Home</a>}>
+                <section className='hfAccount'>
+                    {admin === 'denied' ? (
+                        <>
+                            <h1>Admins only</h1>
+                            <p className='hfPanel-note'>
+                                People needs a Jellyfin administrator or a Home Fin admin account. You&apos;re signed in with neither.
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <h1>Update the accounts service</h1>
+                            <p className='hfPanel-note'>
+                                The web client is newer than the Home Fin accounts service on your server, so this page can&apos;t load.
+                                On the server, run <code>homefin/deploy/install-accounts.sh</code> from the Home Fin folder (it keeps your settings), then reload.
+                            </p>
+                        </>
+                    )}
+                </section>
+            </Screen>
+        );
     }
 
     return (

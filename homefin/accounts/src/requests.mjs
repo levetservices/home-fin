@@ -4,7 +4,7 @@
 import { createRadarr, createSonarr, realSeasons, toResult } from './arr.mjs';
 import { decrypt, encrypt, sha256 } from './crypto.mjs';
 import { REQUEST_POLICIES, toRequest } from './db.mjs';
-import { HttpError, badRequest, createRateLimiter, notFound, readJson } from './http.mjs';
+import { HttpError, badRequest, createRateLimiter, notAdmin, notFound, readJson } from './http.mjs';
 
 const SERVICES = { radarr: createRadarr, sonarr: createSonarr };
 const LIBRARY_TTL_MS = 60 * 1000;
@@ -87,7 +87,7 @@ export function registerRequests({ router, store, jellyfin, key, sessionAccountI
 
     async function requireAdmin(req) {
         const who = await identify(req);
-        if (!who.isAdmin) throw notFound();
+        if (!who.isAdmin) throw notAdmin();
         return who;
     }
 
