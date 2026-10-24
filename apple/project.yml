@@ -1,0 +1,73 @@
+# Home Fin for iPhone, iPad and Mac. Generate the Xcode project with:
+#   brew install xcodegen && xcodegen
+name: HomeFin
+options:
+  bundleIdPrefix: uk.co.levetmedia
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+packages:
+  HomeFinKit:
+    path: HomeFinKit
+
+settings:
+  base:
+    # Set this to your Apple Developer Team ID (Xcode → Settings → Accounts), or pick the team in
+    # Signing & Capabilities after generating.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+
+targets:
+  HomeFin:
+    type: application
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: HomeFin
+        excludes:
+          - HomeFin.entitlements
+    dependencies:
+      - package: HomeFinKit
+    info:
+      path: HomeFin/Info.plist
+      properties:
+        CFBundleDisplayName: Home Fin
+        CFBundleName: Home Fin
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.entertainment
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UIBackgroundModes: [audio]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIUserInterfaceStyle: Dark
+        NSLocalNetworkUsageDescription: Home Fin connects to your media server on your home network.
+        # Home servers are often plain http on the local network or reached by IP address.
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: uk.co.levetmedia.homefin
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": HomeFin/HomeFin.entitlements
+        "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": YES
