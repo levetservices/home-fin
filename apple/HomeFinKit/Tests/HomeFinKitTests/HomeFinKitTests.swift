@@ -100,6 +100,121 @@ final class UnitTests: XCTestCase {
         XCTAssertEqual(transcoding["Protocol"] as? String, "hls")
         XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: profile))
     }
+
+    private func video(container: String, video: String, audio: String, width: Int) -> Item {
+        var item = Item(id: "v1", name: "Clip", type: "Movie")
+        item.runTimeTicks = 3600 * 10_000_000
+        item.mediaSources = [MediaSource(id: "v1", container: container, size: 1_234_567, mediaStreams: [
+            MediaStream(type: "Video", codec: video, index: 0, width: width, height: width * 9 / 16),
+            MediaStream(type: "Audio", codec: audio, index: 1)
+        ])]
+        return item
+    }
+
+    func testDownloadSourceKeepsPlayableOriginals() throws {
+        let client = JellyfinClient(server: URL(string: "http://tv.local:8096")!, device: DeviceIdentity(id: "d1", name: "t"), token: "tok", userId: "u1")
+
+        let mp4 = client.downloadSource(for: video(container: "mov,mp4,m4a", video: "h264", audio: "aac", width: 1920), quality: .higher)
+        XCTAssertTrue(mp4.isOriginal)
+        XCTAssertEqual(mp4.url.path, "/Items/v1/Download")
+        XCTAssertEqual(mp4.expectedBytes, 1_234_567)
+
+        // Standard doesn't keep a big original: the server makes a 720p copy.
+        let standard = client.downloadSource(for: video(container: "mp4", video: "h264", audio: "aac", width: 3840), quality: .standard)
+        XCTAssertFalse(standard.isOriginal)
+
+        let mkv = client.downloadSource(for: video(container: "mkv", video: "h264", audio: "aac", width: 1280), quality: .higher)
+        XCTAssertFalse(mkv.isOriginal)
+        XCTAssertEqual(mkv.url.path, "/Videos/v1/stream.mp4")
+        let query = Dictionary(uniqueKeysWithValues: (URLComponents(url: mkv.url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        XCTAssertEqual(query["VideoCodec"], "h264")
+        XCTAssertEqual(query["AudioCodec"], "aac")
+        XCTAssertEqual(query["api_key"], "tok")
+        XCTAssertEqual(query["MaxWidth"], "1920")
+        // An hour at 7.16 Mbps ≈ 3.2 GB.
+        XCTAssertEqual(Double(mkv.expectedBytes ?? 0), 3_222_000_000, accuracy: 1_000_000)
+
+        let dts = client.downloadSource(for: video(container: "mp4", video: "h264", audio: "dts", width: 1280), quality: .higher)
+        XCTAssertFalse(dts.isOriginal, "DTS audio doesn't play on Apple devices")
+    }
+
+    func testDownloadStorePersistsAndSyncsState() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("hf-downloads-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var episode = Item(id: "e1", name: "Pilot", type: "Episode")
+        episode.seriesId = "s1"
+        let store = DownloadStore(directory: directory)
+        var record = DownloadRecord(item: episode, series: Item(id: "s1", name: "Deep Orbit", type: "Series"),
+                                    fileName: "e1.mp4", quality: .standard, userId: "u1")
+        record.bytesExpected = 1000
+        store.upsert(record)
+        try Data(repeating: 7, count: 400).write(to: store.fileURL(for: record))
+        store.update("e1") { $0.bytesWritten = 400; $0.state = .downloading }
+        XCTAssertEqual(store.record("e1")?.fraction ?? 0, 0.4, accuracy: 0.001)
+
+        store.update("e1") { $0.state = .finished }
+        store.savePosition("e1", seconds: 95, played: false)
+        store.upsert(DownloadRecord(item: Item(id: "m1", name: "Other", type: "Movie"), fileName: "m1.mp4", quality: .higher, userId: "u2"))
+
+        // A fresh store reads the same index back.
+        let reopened = DownloadStore(directory: directory)
+        XCTAssertEqual(reopened.all(userId: "u1").map(\.id), ["e1"])
+        XCTAssertEqual(reopened.all().count, 2)
+        let saved = try XCTUnwrap(reopened.record("e1"))
+        XCTAssertTrue(saved.needsSync)
+        XCTAssertEqual(saved.playableItem.resumeSeconds, 95, accuracy: 0.01)
+        XCTAssertEqual(saved.series?.name, "Deep Orbit")
+        XCTAssertEqual(reopened.totalBytes(userId: "u1"), 400)
+
+        reopened.remove("e1")
+        XCTAssertNil(reopened.record("e1"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: reopened.fileURL(for: saved).path))
+        reopened.removeAll()
+        XCTAssertTrue(reopened.all().isEmpty)
+    }
+
+    func testScopesFilterHome() {
+        var input = HomeInputs(viewerName: "Sam")
+        var episode = Item(id: "e1", name: "Pilot", type: "Episode")
+        episode.seriesId = "s1"
+        input.resume = [episode, film("f1")]
+        input.catalogue = (1...6).map { film("m\($0)") } + (1...6).map { Item(id: "s\($0)", name: "Series \($0)", type: "Series") }
+        input.trendingMovies = [film("m1"), film("m2"), film("m3")]
+
+        let films = HomePlanner.plan(input.scoped(to: .films))
+        XCTAssertTrue(films.rows.flatMap(\.items).allSatisfy(\.isMovie))
+        XCTAssertEqual(films.rows.first?.items.map(\.id), ["f1"])
+        XCTAssertTrue(films.rows.contains { $0.id == "top10-movies" })
+
+        let series = HomePlanner.plan(input.scoped(to: .series))
+        XCTAssertTrue(series.rows.flatMap(\.items).allSatisfy { $0.isSeries || $0.isEpisode })
+        XCTAssertFalse(series.rows.contains { $0.id == "top10-movies" })
+    }
+
+    func testRibbons() {
+        let now = HomePlanner.date("2026-10-24T12:00:00Z")!
+        var film = Item(id: "f", name: "New Film", type: "Movie")
+        film.dateCreated = "2026-10-20T09:00:00.1234567Z"
+        XCTAssertEqual(film.ribbon(now: now), "Recently Added")
+        var series = Item(id: "s", name: "Old Show", type: "Series")
+        series.dateCreated = "2025-01-01T00:00:00Z"
+        series.dateLastMediaAdded = "2026-10-22T00:00:00Z"
+        XCTAssertEqual(series.ribbon(now: now), "New Episodes")
+        series.dateLastMediaAdded = "2026-08-01T00:00:00Z"
+        XCTAssertNil(series.ribbon(now: now))
+    }
+
+    func testQualityBadges() {
+        var item = video(container: "mkv", video: "hevc", audio: "eac3", width: 3840)
+        XCTAssertEqual(item.badges.resolution, "4K")
+        item.mediaSources?[0].mediaStreams?[0].videoRangeType = "DOVIWithHDR10"
+        item.mediaSources?[0].mediaStreams?.append(MediaStream(type: "Subtitle", codec: "subrip", index: 2))
+        XCTAssertTrue(item.badges.dolbyVision)
+        XCTAssertFalse(item.badges.hdr)
+        XCTAssertTrue(item.badges.subtitles)
+        XCTAssertEqual(video(container: "mp4", video: "h264", audio: "aac", width: 1280).badges.resolution, "HD")
+        XCTAssertNil(video(container: "mp4", video: "h264", audio: "aac", width: 720).badges.resolution)
+    }
 }
 
 /// Runs against a real Jellyfin + Home Fin accounts service when HOMEFIN_IT_SERVER is set, e.g.
@@ -185,6 +300,79 @@ final class IntegrationTests: XCTestCase {
         await jellyfin.reportStopped(plan, seconds: 4)
         let stopped: [Session] = try await jellyfin.get("/Sessions", ["deviceId": device.id])
         XCTAssertNil(stopped.first?.NowPlayingItem, "and stopping clears it")
+    }
+
+    func testDownloadsAndOfflineSync() async throws {
+        let jellyfin = try await signedInJellyfin()
+        let films = try await jellyfin.items(["IncludeItemTypes": "Movie", "Limit": "1", "SortBy": "SortName"])
+        let film = try await jellyfin.item(try XCTUnwrap(films.first).id)
+        XCTAssertNotNil(film.mediaSources?.first?.video, "item(_:) brings media streams")
+
+        // Whichever way the file comes, the first bytes are a real MP4 / MOV (or the original container).
+        for quality in DownloadQuality.allCases {
+            let source = jellyfin.downloadSource(for: film, quality: quality)
+            var request = URLRequest(url: source.url)
+            request.timeoutInterval = 60
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            XCTAssertEqual(status, 200, "\(quality) download answered \(status)")
+            XCTAssertGreaterThan(data.count, 10_000)
+            if !source.isOriginal {
+                XCTAssertEqual(String(decoding: data[4..<8], as: UTF8.self), "ftyp", "converted downloads are MP4")
+            }
+            print("download \(quality):", source.isOriginal ? "original" : "converted", data.count, "bytes")
+        }
+
+        // Watching offline, then syncing, sets the server's resume point; position 0 clears it.
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("hf-it-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = DownloadStore(directory: directory)
+        store.upsert(DownloadRecord(item: film, fileName: "f.mp4", quality: .standard, userId: try XCTUnwrap(jellyfin.userId)))
+        store.savePosition(film.id, seconds: 4, played: false)
+        let synced = await store.syncPositions(with: jellyfin)
+        XCTAssertEqual(synced, 1)
+        XCTAssertFalse(try XCTUnwrap(store.record(film.id)).needsSync)
+        let after = try await jellyfin.item(film.id)
+        XCTAssertEqual(after.userData?.playbackPositionTicks, 40_000_000)
+        try await jellyfin.removeFromContinueWatching(after)
+        let cleared = try await jellyfin.item(film.id)
+        XCTAssertEqual(cleared.userData?.playbackPositionTicks ?? 0, 0)
+    }
+
+    func testLibraryExtras() async throws {
+        let jellyfin = try await signedInJellyfin()
+        let genres = try await jellyfin.genres()
+        XCTAssertFalse(genres.isEmpty)
+        let inGenre = try await jellyfin.items(inGenre: genres[0])
+        XCTAssertTrue(inGenre.allSatisfy { $0.genres?.contains(genres[0]) == true })
+        let filmsOnly = try await jellyfin.items(inGenre: genres[0], scope: .films)
+        XCTAssertTrue(filmsOnly.allSatisfy(\.isMovie))
+
+        let someSeries = try await jellyfin.items(["IncludeItemTypes": "Series", "Limit": "1"])
+        let any = try XCTUnwrap(someSeries.first)
+        try await jellyfin.setRating(any.id, likes: true)
+        let liked = try await jellyfin.liked()
+        XCTAssertTrue(liked.contains { $0.id == any.id })
+        try await jellyfin.setRating(any.id, likes: nil)
+
+        let arrivals = try await jellyfin.arrivals(days: 3650)
+        XCTAssertFalse(arrivals.isEmpty)
+        XCTAssertTrue(arrivals.allSatisfy { $0.isMovie || $0.isSeries })
+
+        let series = try await HomeLoader(jellyfin: jellyfin, accounts: nil).load(viewerName: "T", scope: .series)
+        XCTAssertTrue(series.rows.flatMap(\.items).allSatisfy { $0.isSeries || $0.isEpisode })
+
+        // Artwork comes without signing in (the profile picker uses this).
+        let (_, response) = try await URLSession.shared.data(from: jellyfin.untaggedImageURL(any.id, .primary, maxWidth: 200))
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertTrue(jellyfin.webURL(for: any).absoluteString.hasSuffix("/web/#/details?id=\(any.id)"))
+
+        // The plan lists the source's tracks for the Audio & Subtitles menu.
+        let someFilms = try await jellyfin.items(["IncludeItemTypes": "Movie", "Limit": "1"])
+        let film = try await jellyfin.item(try XCTUnwrap(someFilms.first).id)
+        let plan = try await jellyfin.playbackPlan(for: film, startSeconds: 0)
+        XCTAssertFalse(plan.audioStreams.isEmpty)
+        XCTAssertEqual(plan.subtitleStreamIndex, -1)
     }
 
     func testAccountsSignInProfilesAndRequests() async throws {

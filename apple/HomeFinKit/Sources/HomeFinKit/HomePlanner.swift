@@ -50,6 +50,24 @@ public struct HomeInputs: Sendable {
     public init(viewerName: String) {
         self.viewerName = viewerName
     }
+
+    /// The same inputs with only series (and their episodes) or only films: Home's Series and Films pills.
+    public func scoped(to scope: HomeScope) -> HomeInputs {
+        guard scope != .all else { return self }
+        var copy = self
+        copy.resume = resume.filter(scope.includes)
+        copy.nextUp = nextUp.filter(scope.includes)
+        copy.favourites = favourites.filter(scope.includes)
+        copy.catalogue = catalogue.filter(scope.includes)
+        copy.recentlyPlayed = recentlyPlayed.filter(scope.includes)
+        copy.trendingSeries = scope == .films ? [] : trendingSeries
+        copy.trendingMovies = scope == .series ? [] : trendingMovies
+        if let because = becauseYouWatched {
+            let items = because.items.filter(scope.includes)
+            copy.becauseYouWatched = items.isEmpty ? nil : (because.title, items)
+        }
+        return copy
+    }
 }
 
 /// Netflix's home screen, as rows: same order and limits as the web client (SPEC §7.3), simplified.
@@ -208,7 +226,7 @@ public struct HomeLoader: Sendable {
         self.accounts = accounts
     }
 
-    public func load(viewerName: String) async throws -> HomePlan {
+    public func load(viewerName: String, scope: HomeScope = .all) async throws -> HomePlan {
         async let resume = jellyfin.resume()
         async let nextUp = jellyfin.nextUp()
         async let favourites = jellyfin.favourites()
@@ -231,14 +249,14 @@ public struct HomeLoader: Sendable {
         }
 
         // "Because you watched": the latest played film, or the series of the latest episode.
-        if let last = input.recentlyPlayed.first {
+        if let last = input.recentlyPlayed.first(where: scope.includes) {
             let seedId = last.isEpisode ? (last.seriesId ?? last.id) : last.id
             let title = last.isEpisode ? (last.seriesName ?? last.name ?? "") : (last.name ?? "")
             if let similar = try? await jellyfin.similar(to: seedId), !similar.isEmpty {
                 input.becauseYouWatched = (title, similar)
             }
         }
-        return HomePlanner.plan(input)
+        return HomePlanner.plan(input.scoped(to: scope))
     }
 
     private func optionalTrending() async -> Trending? {

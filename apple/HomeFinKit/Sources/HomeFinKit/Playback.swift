@@ -12,6 +12,24 @@ public struct PlaybackPlan: Sendable, Equatable {
     /// "DirectPlay" (the file as it is) or "Transcode" (HLS made by the server).
     public var playMethod: String
     public var startSeconds: Double
+    /// The source's audio and subtitle tracks, for the Audio & Subtitles menu.
+    public var audioStreams: [MediaStream] = []
+    public var subtitleStreams: [MediaStream] = []
+    public var audioStreamIndex: Int?
+    /// -1 is subtitles off.
+    public var subtitleStreamIndex: Int?
+
+    public init(url: URL, itemId: String, mediaSourceId: String, playSessionId: String? = nil, playMethod: String, startSeconds: Double) {
+        self.url = url
+        self.itemId = itemId
+        self.mediaSourceId = mediaSourceId
+        self.playSessionId = playSessionId
+        self.playMethod = playMethod
+        self.startSeconds = startSeconds
+    }
+
+    /// A downloaded file, played from the device (progress is saved locally and synced later).
+    public var isOffline: Bool { url.isFileURL }
 }
 
 /// What Apple devices play natively, so Jellyfin only converts what it must.
@@ -55,32 +73,50 @@ public enum AppleDeviceProfile {
 extension JellyfinClient {
     /// Ask Jellyfin how this device should play `item` and build the URL for AVPlayer.
     /// `maxBitrate` nil means the best the connection allows.
-    public func playbackPlan(for item: Item, maxBitrate: Int? = nil, startSeconds: Double? = nil) async throws -> PlaybackPlan {
+    ///
+    /// Choosing an audio track other than the default, or any subtitles, has the server remux into
+    /// HLS so the chosen tracks are the ones AVPlayer gets (text subtitles inside the stream,
+    /// picture subtitles burned in).
+    public func playbackPlan(for item: Item, maxBitrate: Int? = nil, startSeconds: Double? = nil,
+                             audioStreamIndex: Int? = nil, subtitleStreamIndex: Int? = nil) async throws -> PlaybackPlan {
         let start = startSeconds ?? item.resumeSeconds
-        let body: [String: Any] = [
+        let defaultAudio = item.mediaSources?.first?.defaultAudioStreamIndex
+        let pickedTracks = (audioStreamIndex != nil && audioStreamIndex != defaultAudio) || (subtitleStreamIndex ?? -1) >= 0
+        var body: [String: Any] = [
             "DeviceProfile": AppleDeviceProfile.json(maxBitrate: maxBitrate),
             "MaxStreamingBitrate": maxBitrate ?? 120_000_000,
             "StartTimeTicks": Int64(start * ticksPerSecond),
             "AutoOpenLiveStream": true,
-            "EnableDirectPlay": true,
+            "EnableDirectPlay": !pickedTracks,
             "EnableDirectStream": true,
             "EnableTranscoding": true,
             "AllowVideoStreamCopy": true,
             "AllowAudioStreamCopy": true
         ]
+        if let audioStreamIndex { body["AudioStreamIndex"] = audioStreamIndex }
+        if let subtitleStreamIndex { body["SubtitleStreamIndex"] = subtitleStreamIndex }
         let data = try JSONSerialization.data(withJSONObject: body)
         let info = try await http.decode(PlaybackInfoResponse.self, request("/Items/\(item.id)/PlaybackInfo", query: ["userId": uid], method: "POST", body: data))
         guard let source = info.mediaSources.first, let sourceId = source.id else {
             throw HomeFinError(message: "This title has nothing playable.", code: "no_source")
         }
 
-        if source.supportsDirectPlay == true {
+        func finish(_ plan: PlaybackPlan) -> PlaybackPlan {
+            var plan = plan
+            plan.audioStreams = source.audioStreams
+            plan.subtitleStreams = source.subtitleStreams
+            plan.audioStreamIndex = audioStreamIndex ?? source.defaultAudioStreamIndex
+            plan.subtitleStreamIndex = subtitleStreamIndex ?? source.defaultSubtitleStreamIndex ?? -1
+            return plan
+        }
+
+        if source.supportsDirectPlay == true && !pickedTracks {
             let url = HTTP.url(server, "/Videos/\(item.id)/stream", [
                 "static": "true", "MediaSourceId": sourceId, "PlaySessionId": info.playSessionId,
                 "DeviceId": device.id, "api_key": token
             ])
-            return PlaybackPlan(url: url, itemId: item.id, mediaSourceId: sourceId, playSessionId: info.playSessionId,
-                                playMethod: "DirectPlay", startSeconds: start)
+            return finish(PlaybackPlan(url: url, itemId: item.id, mediaSourceId: sourceId, playSessionId: info.playSessionId,
+                                       playMethod: "DirectPlay", startSeconds: start))
         }
         guard let transcoding = source.transcodingUrl, var components = URLComponents(string: HTTP.url(server, transcoding.components(separatedBy: "?")[0]).absoluteString) else {
             throw HomeFinError(message: "The server can't convert this title for this device.", code: "no_transcode")
@@ -93,12 +129,13 @@ extension JellyfinClient {
         }
         components.queryItems = queryItems
         guard let url = components.url else { throw HomeFinError(message: "Bad stream address from the server.", code: "bad_url") }
-        return PlaybackPlan(url: url, itemId: item.id, mediaSourceId: sourceId, playSessionId: info.playSessionId,
-                            playMethod: "Transcode", startSeconds: start)
+        return finish(PlaybackPlan(url: url, itemId: item.id, mediaSourceId: sourceId, playSessionId: info.playSessionId,
+                                   playMethod: "Transcode", startSeconds: start))
     }
 
     private func report(_ path: String, _ plan: PlaybackPlan, seconds: Double, paused: Bool = false) async {
-        let body: [String: Any] = [
+        guard !plan.isOffline else { return }
+        var body: [String: Any] = [
             "ItemId": plan.itemId,
             "MediaSourceId": plan.mediaSourceId,
             "PlaySessionId": plan.playSessionId ?? "",
@@ -107,6 +144,8 @@ extension JellyfinClient {
             "PlayMethod": plan.playMethod,
             "CanSeek": true
         ]
+        if let audio = plan.audioStreamIndex { body["AudioStreamIndex"] = audio }
+        if let subtitles = plan.subtitleStreamIndex { body["SubtitleStreamIndex"] = subtitles }
         try? await send(path, json: body)
     }
 

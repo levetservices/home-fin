@@ -15,6 +15,8 @@ struct RequestsView: View {
     @State private var error: String?
     @State private var declining: MediaRequest?
     @State private var declineReason = ""
+    @State private var scrolled = false
+    @FocusState private var searchFocused: Bool
 
     private var columns: [GridItem] { [GridItem(.adaptive(minimum: compact ? 104 : 150), spacing: 10)] }
 
@@ -30,7 +32,7 @@ struct RequestsView: View {
                     } else if query.trimmingCharacters(in: .whitespaces).count >= 2 {
                         LazyVGrid(columns: columns, spacing: 14) {
                             ForEach(results) { result in
-                                Button { requesting = result } label: { RequestPoster(result: result, width: compact ? 104 : 150) }
+                                Button { requesting = result } label: { RequestPoster(result: result, width: nil) }
                                     .buttonStyle(CardButtonStyle())
                             }
                         }
@@ -55,11 +57,24 @@ struct RequestsView: View {
                         }
                     }
                 }
-                .padding(Theme.gutter)
+                .padding(.horizontal, Theme.gutter)
+                .padding(.bottom, 40)
+            }
+            .scrollDismissesKeyboard(.immediately)
+            .trackScrolled($scrolled)
+            .pinnedHeader(scrolled: scrolled) {
+                VStack(spacing: 6) {
+                    TabHeader { Text("Requests").font(.system(size: 28, weight: .bold)) }
+                    if config?.enabled == true {
+                        GlassSearchField(prompt: config?.movies == true && config?.tv == true ? "Find a film or series to ask for…" : "Search…",
+                                         text: $query, focus: $searchFocused)
+                            .padding(.horizontal, Theme.gutter)
+                            .padding(.bottom, 10)
+                    }
+                }
             }
             .homeFinBackground()
-            .navigationTitle("Requests")
-            .searchable(text: $query, prompt: config?.movies == true && config?.tv == true ? "Films and shows" : "Search")
+            .hideNavigationBar()
             .refreshable { await load() }
             .task { await load() }
             .task(id: query) { await search() }
@@ -85,7 +100,7 @@ struct RequestsView: View {
         LazyVGrid(columns: columns, spacing: 14) {
             ForEach(requests) { request in
                 VStack(alignment: .leading, spacing: 4) {
-                    RequestPoster(result: asResult(request), width: compact ? 104 : 150)
+                    RequestPoster(result: asResult(request), width: nil)
                     Text(caption(request)).font(.caption2).foregroundStyle(Theme.secondary).lineLimit(1)
                 }
                 .contextMenu {
@@ -120,11 +135,11 @@ struct RequestsView: View {
                 .disabled(busy == request.id)
             if request.status == "pending" {
                 Button("Decline") { declineReason = ""; declining = request }
-                    .buttonStyle(SecondaryButtonStyle())
+                    .buttonStyle(GlassPillButtonStyle(height: 38))
             }
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.surface))
+        .glass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     // MARK: data
@@ -193,13 +208,15 @@ struct RequestsView: View {
 /// A Sonarr / Radarr poster with its status pill.
 struct RequestPoster: View {
     var result: MediaResult
-    var width: CGFloat
+    /// nil fills the width it's given (grids).
+    var width: CGFloat?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             ZStack(alignment: .topLeading) {
                 Artwork(url: result.poster.flatMap(URL.init(string:)), placeholder: result.title)
-                    .frame(width: width, height: width * 1.5)
+                    .frame(width: width, height: width.map { $0 * 1.5 })
+                    .aspectRatio(2 / 3, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
                 if let label = RequestState.label(result.state, progress: result.progress) {
                     Text(label)

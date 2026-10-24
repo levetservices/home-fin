@@ -1,31 +1,41 @@
 # Home Fin for iPhone, iPad and Mac
 
-A native SwiftUI app with the same look and feel as the Home Fin web app:
-Who's watching?, the billboard, Continue Watching, Top 10, "Because you
-watched…", My List, title pages with episodes, search, requests and the admin
-approval queue. One app target runs on iPhone, iPad and Mac (native macOS,
-not Catalyst).
+A native SwiftUI app laid out like the Netflix iPhone app, with Liquid Glass:
+the welcome mosaic, Netflix-style sign-in, "Choose your profile" over today's
+No. 1, Home with Series / Films / Categories pills and a billboard that tints
+the page, title pages as sheets, a Netflix-style player, Search, My Home Fin,
+downloads for watching offline, requests and the admin approval queue. One app
+target runs on iPhone, iPad and Mac (native macOS, not Catalyst).
+
+Liquid Glass (the tab bar, buttons, pills, sheets) needs iOS 26 / macOS 26 and
+appears automatically there. On iOS 18–18.x and macOS 15 the same controls use
+a frosted-glass look instead, so older devices still work.
 
 ```
 apple/
   project.yml        XcodeGen spec: the Xcode project is generated from this
   HomeFin/           the app (SwiftUI)
-    App/             start-up, AppModel (who's signed in, which screen)
-    Onboarding/      server address, sign in, Who's watching? + PIN pad
-    Home/            billboard and rows
-    Detail/          title page, episodes, More Like This
-    Player/          AVKit player (PiP, AirPlay, subtitles), progress reporting
-    Search/          library search + "Not here yet" requests
+    App/             start-up, AppModel, preferences, the download manager
+    Onboarding/      welcome, server address, sign in, profiles + PIN pad
+    Main/            tabs, the shared header (AirPlay, Downloads, bell), offline mode
+    Home/            pills, billboard, rows, categories
+    Detail/          the title sheet: Play / Download, rate, share, episodes
+    Player/          custom Netflix-style controls on AVPlayer (PiP, AirPlay,
+                     speed, episodes, audio & subtitles, lock, brightness)
+    Downloads/       Download buttons and the Downloads page
+    Search/          suggestions, results, "Not here yet" requests
     Requests/        your / household requests, admin queue, request sheet
-    Settings/        My Home Fin: profile, My List, quality, Sign in a TV
-    Theme/           colours, buttons, artwork, rating badges
+    Settings/        My Home Fin, the Profiles sheet, App Settings, Sign In a TV
+    Theme/           colours, buttons, badges, and Glass.swift (Liquid Glass)
   HomeFinKit/        Swift package with no UI: Jellyfin + accounts clients,
-                     playback plans, the home-screen planner. Has tests.
+                     playback plans, the home-screen planner, downloads and
+                     offline progress. Has tests.
 ```
 
 ## What you need
 
-* A Mac with Xcode 16 or newer.
+* A Mac with **Xcode 26** or newer (for the Liquid Glass APIs). The app runs on
+  iOS / iPadOS 18 or later and macOS 15 or later.
 * Your Apple Developer account signed in to Xcode (Xcode → Settings → Accounts).
 * XcodeGen: `brew install xcodegen`.
 
@@ -94,7 +104,15 @@ works on your home Wi-Fi.
   PINs, trending and requests, when the server has accounts turned on.
 * Progress is reported to Jellyfin every 10 seconds, so Continue Watching
   matches the web app and TVs.
-* Streaming quality is set in My Home Fin (Auto by default).
+* Streaming quality is set in App Settings: on Wi-Fi (Auto by default) and on
+  mobile data (Automatic caps it at 4 Mbps; Save Data, Maximum Data and Wi-Fi
+  Only work as on Netflix).
+* Downloads keep the original file when the device plays it as it is (MP4 /
+  MOV with H.264 or HEVC), otherwise the server converts a copy to MP4
+  (Standard ≈ 720p, Higher ≈ 1080p). They keep downloading with the app
+  closed. Positions watched offline are sent to the server when it's next
+  reachable. With no connection at launch, the app opens straight to
+  Downloads.
 * The sign-in token lives in the Keychain. Sign out removes it.
 
 ## Testing HomeFinKit

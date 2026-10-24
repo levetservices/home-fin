@@ -1,19 +1,24 @@
 import HomeFinKit
 import SwiftUI
 
-/// Home Fin's look: Netflix's charcoal, red wordmark and white primary buttons.
+/// Home Fin's look: the Netflix app's black, red brand mark, white Play and glass everywhere else.
 enum Theme {
-    static let background = Color(hex: "#141414")
+    static let background = Color.black
+    /// Card footers, settings rows.
     static let surface = Color(hex: "#1c1c1c")
-    static let raised = Color(hex: "#2f2f2f")
+    /// Sheets, pressed rows, the season menu.
+    static let raised = Color(hex: "#2a2a2a")
     static let brand = Color(hex: "#e50914")
     static let text = Color(hex: "#e5e5e5")
     static let secondary = Color(hex: "#a3a3a3")
-    static let cardRadius: CGFloat = 8
+    static let tertiary = Color(hex: "#6d6d6d")
+    static let cardRadius: CGFloat = 6
     static let gutter: CGFloat = 16
 
     /// Quick, slightly springy: the motion used throughout.
     static let spring = Animation.spring(response: 0.35, dampingFraction: 0.85)
+    /// Bigger moves (sheets of content, the billboard).
+    static let glide = Animation.spring(response: 0.55, dampingFraction: 0.9)
 }
 
 extension Color {
@@ -30,17 +35,32 @@ extension Color {
     }
 }
 
-/// The red HOMEFIN wordmark.
+/// The red HOMEFIN wordmark (sign-in, launch).
 struct Wordmark: View {
     var size: CGFloat = 26
 
     var body: some View {
         Text("HOMEFIN")
-            .font(.system(size: size, weight: .black))
-            .tracking(-size * 0.05)
+            .font(.system(size: size, weight: .black).width(.condensed))
+            .tracking(-size * 0.02)
             .foregroundStyle(Theme.brand)
-            .scaleEffect(x: 1, y: 1.18)
+            .scaleEffect(x: 1, y: 1.12)
             .accessibilityLabel("Home Fin")
+    }
+}
+
+/// The red "H" that sits where Netflix puts its N, before "Home" in the header.
+struct BrandMark: View {
+    var size: CGFloat = 34
+
+    var body: some View {
+        Text("H")
+            .font(.system(size: size, weight: .black).width(.compressed))
+            .foregroundStyle(
+                LinearGradient(colors: [Color(hex: "#ff1f2c"), Theme.brand, Color(hex: "#b20710")], startPoint: .top, endPoint: .bottom)
+            )
+            .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+            .accessibilityHidden(true)
     }
 }
 
@@ -54,16 +74,16 @@ struct AvatarView: View {
         ZStack {
             if let preset {
                 LinearGradient(colors: [Color(hex: preset.from), Color(hex: preset.to)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                Text(preset.emoji).font(.system(size: size * 0.55))
+                Text(preset.emoji).font(.system(size: size * 0.58))
             } else {
-                Theme.brand
+                LinearGradient(colors: [Color(hex: "#e50914"), Color(hex: "#7a0410")], startPoint: .topLeading, endPoint: .bottomTrailing)
                 Text(String(name.prefix(1)).uppercased())
                     .font(.system(size: size * 0.5, weight: .bold))
                     .foregroundStyle(.white)
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.16, style: .continuous))
     }
 }
 
@@ -83,10 +103,10 @@ struct RatingBadge: View {
             let label = rating.replacingOccurrences(of: #"^(GB|UK|US)[-:\s]"#, with: "", options: [.regularExpression, .caseInsensitive]).uppercased()
             let band = Self.bands[label]
             Text(label)
-                .font(.system(size: 11, weight: .heavy))
+                .font(.system(size: 10, weight: .heavy))
                 .foregroundStyle(.white)
                 .padding(.horizontal, label.count > 3 ? 6 : 0)
-                .frame(minWidth: 22, minHeight: 22)
+                .frame(minWidth: 20, minHeight: 20)
                 .background {
                     if let band, let colour = Self.colours[band] {
                         Capsule().fill(Color(hex: colour))
@@ -98,7 +118,70 @@ struct RatingBadge: View {
     }
 }
 
-/// Remote artwork that fades in, on a grey placeholder. Images come through URLCache (set up at launch).
+/// HD / 4K, HDR, Dolby Vision and subtitles, after the rating on a title page.
+struct QualityBadges: View {
+    var badges: VideoBadges
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if badges.dolbyVision {
+                VStack(alignment: .leading, spacing: -2) {
+                    Text("Dolby").font(.system(size: 10, weight: .bold))
+                    Text("VISION").font(.system(size: 6, weight: .semibold)).tracking(1)
+                }
+            }
+            if let resolution = badges.resolution { boxed(resolution) }
+            if badges.hdr { boxed("HDR") }
+            if badges.subtitles {
+                Image(systemName: "captions.bubble").font(.system(size: 14))
+            }
+        }
+        .foregroundStyle(Theme.secondary)
+    }
+
+    private func boxed(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .bold))
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Theme.secondary, lineWidth: 1))
+    }
+}
+
+/// The small red "TOP 10" square in a poster's corner.
+struct Top10Badge: View {
+    var scale: CGFloat = 1
+
+    var body: some View {
+        VStack(spacing: -1 * scale) {
+            Text("TOP").font(.system(size: 6 * scale, weight: .heavy))
+            Text("10").font(.system(size: 11 * scale, weight: .black))
+        }
+        .foregroundStyle(.white)
+        .frame(width: 19 * scale, height: 23 * scale)
+        .background(Theme.brand)
+        .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 2 * scale, topTrailingRadius: 2 * scale))
+        .accessibilityLabel("Top 10")
+    }
+}
+
+/// "New Episodes", "Recently Added": the red ribbon at the bottom of a poster.
+struct Ribbon: View {
+    var text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(Theme.brand, in: UnevenRoundedRectangle(topLeadingRadius: 2, topTrailingRadius: 2))
+    }
+}
+
+/// Remote (or downloaded) artwork that fades in, on a grey placeholder. Images come through
+/// URLCache (set up at launch).
 struct Artwork: View {
     var url: URL?
     var contentMode: ContentMode = .fill
@@ -111,10 +194,12 @@ struct Artwork: View {
                 image.resizable().aspectRatio(contentMode: contentMode).transition(.opacity)
             default:
                 ZStack {
-                    LinearGradient(colors: [Theme.raised, Theme.surface], startPoint: .top, endPoint: .bottom)
+                    if contentMode == .fill {
+                        LinearGradient(colors: [Color(hex: "#2b2b2b"), Color(hex: "#181818")], startPoint: .top, endPoint: .bottom)
+                    }
                     if let placeholder, phase.error != nil || url == nil {
                         Text(placeholder)
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 14, weight: .heavy))
                             .foregroundStyle(Theme.secondary)
                             .multilineTextAlignment(.center)
                             .padding(8)
@@ -125,35 +210,76 @@ struct Artwork: View {
     }
 }
 
-/// White pill: Netflix's Play button.
+/// The thin red watched-so-far bar.
+struct ProgressBar: View {
+    var value: Double
+    var height: CGFloat = 3
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Color.white.opacity(0.28))
+                Rectangle().fill(Theme.brand).frame(width: proxy.size.width * max(0, min(1, value)))
+            }
+        }
+        .frame(height: height)
+        .clipShape(Capsule())
+    }
+}
+
+/// The circled play glyph on Continue Watching posters and episode stills.
+struct PlayCircle: View {
+    var size: CGFloat = 44
+
+    var body: some View {
+        Image(systemName: "play.fill")
+            .font(.system(size: size * 0.38))
+            .foregroundStyle(.white)
+            .offset(x: size * 0.03)
+            .frame(width: size, height: size)
+            .background(Circle().fill(.black.opacity(0.35)))
+            .overlay(Circle().stroke(.white, lineWidth: max(1.5, size * 0.045)))
+            .shadow(color: .black.opacity(0.4), radius: 6)
+    }
+}
+
+/// White pill: Netflix's Play.
 struct PrimaryButtonStyle: ButtonStyle {
+    var height: CGFloat = 44
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .bold))
-            .padding(.vertical, 10)
+            .font(.system(size: 17, weight: .semibold))
+            .labelStyle(TightLabelStyle())
             .padding(.horizontal, 22)
+            .frame(minHeight: height)
             .foregroundStyle(.black)
             .background(Capsule().fill(.white.opacity(configuration.isPressed ? 0.75 : 1)))
+            .contentShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(Theme.spring, value: configuration.isPressed)
     }
 }
 
-/// Translucent grey pill: More Info.
-struct SecondaryButtonStyle: ButtonStyle {
+/// Glass pill: My List, Download, More Info.
+struct GlassPillButtonStyle: ButtonStyle {
+    var height: CGFloat = 44
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .bold))
-            .padding(.vertical, 10)
+            .font(.system(size: 17, weight: .semibold))
+            .labelStyle(TightLabelStyle())
             .padding(.horizontal, 22)
+            .frame(minHeight: height)
             .foregroundStyle(.white)
-            .background(Capsule().fill(Color(white: 0.43).opacity(configuration.isPressed ? 0.5 : 0.7)))
+            .glass(in: Capsule(), interactive: true)
+            .contentShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(Theme.spring, value: configuration.isPressed)
     }
 }
 
-/// Red full-width button for sign-in forms.
+/// Red button for sign-in forms (Continue).
 struct BrandButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
@@ -161,9 +287,9 @@ struct BrandButtonStyle: ButtonStyle {
         configuration.label
             .font(.system(size: 17, weight: .bold))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .frame(height: 48)
             .foregroundStyle(.white)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.brand.opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)))
+            .background(RoundedRectangle(cornerRadius: 5).fill(Color(hex: "#d42f27").opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)))
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(Theme.spring, value: configuration.isPressed)
     }
@@ -190,22 +316,29 @@ struct CardButtonStyle: ButtonStyle {
     }
 }
 
-/// A form field in the sign-in style: dark box, grey label.
+/// Icon and title close together, as on Netflix's buttons.
+struct TightLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            configuration.icon
+            configuration.title
+        }
+    }
+}
+
+/// A Netflix sign-in field: dark box, grey border, placeholder inside.
 struct FieldBox<Content: View>: View {
-    var label: String
     @ViewBuilder var content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.footnote).foregroundStyle(Theme.secondary)
-            content
-                .textFieldStyle(.plain)
-                .font(.system(size: 17))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 13)
-                .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.55)))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.25), lineWidth: 1))
-        }
+        content
+            .textFieldStyle(.plain)
+            .font(.system(size: 17))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .frame(height: 54)
+            .background(RoundedRectangle(cornerRadius: 5).fill(Color(hex: "#161616").opacity(0.85)))
+            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.white.opacity(0.35), lineWidth: 1))
     }
 }
 
@@ -227,15 +360,15 @@ struct ErrorNote: View {
 }
 
 extension View {
-    /// The app's dark canvas behind a screen.
+    /// The app's black canvas behind a screen.
     func homeFinBackground() -> some View {
         background(Theme.background.ignoresSafeArea())
     }
 
-    /// Hide the navigation bar's background on iOS (Home floats over artwork); no-op on the Mac.
-    @ViewBuilder func transparentNavigationBar() -> some View {
+    /// Screens draw their own header; hide the system navigation bar on iPhone and iPad.
+    @ViewBuilder func hideNavigationBar() -> some View {
         #if os(iOS)
-        toolbarBackground(.hidden, for: .navigationBar)
+        toolbar(.hidden, for: .navigationBar)
         #else
         self
         #endif
@@ -248,4 +381,24 @@ extension View {
         self
         #endif
     }
+}
+
+extension Double {
+    /// "1h 52m", "57m".
+    var runtimeText: String {
+        let minutes = Int(self / 60)
+        if minutes < 60 { return "\(max(1, minutes))m" }
+        return "\(minutes / 60)h \(minutes % 60)m"
+    }
+
+    /// "1:02:03" / "4:05" for the player.
+    var clockText: String {
+        let total = Int(max(0, self))
+        let hours = total / 3600, minutes = (total % 3600) / 60, seconds = total % 60
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, seconds) : String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+extension Item {
+    var runtimeSeconds: Double { Double(runTimeTicks ?? 0) / ticksPerSecond }
 }

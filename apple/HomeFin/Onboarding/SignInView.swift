@@ -10,6 +10,7 @@ struct SignInView: View {
     @State private var email = ""
     @State private var username = ""
     @State private var password = ""
+    @State private var showPassword = false
     @State private var busy = false
     @State private var error: String?
     @FocusState private var focus: Field?
@@ -20,7 +21,7 @@ struct SignInView: View {
     private var jellyfinOnly: Bool { !model.accountsEnabled || useJellyfin }
 
     var body: some View {
-        AuthScaffold {
+        AuthScaffold(back: goBack) {
             VStack(alignment: .leading, spacing: 18) {
                 if jellyfinOnly {
                     jellyfinForm
@@ -29,7 +30,7 @@ struct SignInView: View {
                 } else {
                     passwordStep
                 }
-                footer
+                HelpDisclosure(lines: help, actions: helpActions)
             }
             .animation(Theme.spring, value: step)
             .animation(Theme.spring, value: useJellyfin)
@@ -37,13 +38,23 @@ struct SignInView: View {
         .onAppear { focus = jellyfinOnly ? .username : .email }
     }
 
+    private func goBack() {
+        if step == .password && !jellyfinOnly {
+            password = ""
+            error = nil
+            step = .email
+            focus = .email
+        } else {
+            withAnimation(Theme.spring) { model.phase = .welcome }
+        }
+    }
+
     private var emailStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Enter your info to sign in").font(.system(size: 30, weight: .bold))
-            Text("Signing in to \(model.serverName).").foregroundStyle(Theme.secondary)
+            Text("Enter your info to sign in").font(.system(size: 28, weight: .bold))
             ErrorNote(message: error)
-            FieldBox(label: "Email address") {
-                TextField("", text: $email)
+            FieldBox {
+                TextField("", text: $email, prompt: Text("Email address").foregroundStyle(Theme.secondary))
                     .textContentType(.username)
                     .autocorrectionDisabled()
                     #if os(iOS)
@@ -62,26 +73,26 @@ struct SignInView: View {
 
     private var passwordStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Enter your password").font(.system(size: 30, weight: .bold))
-            HStack(spacing: 6) {
-                Text("Signing in as").foregroundStyle(Theme.secondary)
-                Text(email).bold()
-                Button("Change") {
-                    password = ""
-                    error = nil
-                    step = .email
-                    focus = .email
-                }
-                .buttonStyle(.plain)
-                .underline()
-            }
-            .font(.callout)
+            Text("Enter your password").font(.system(size: 28, weight: .bold))
+            Text(email).font(.system(size: 17)).foregroundStyle(Theme.secondary)
             ErrorNote(message: error)
-            FieldBox(label: "Password") {
-                SecureField("", text: $password)
+            FieldBox {
+                HStack {
+                    Group {
+                        if showPassword {
+                            TextField("", text: $password, prompt: Text("Password").foregroundStyle(Theme.secondary))
+                        } else {
+                            SecureField("", text: $password, prompt: Text("Password").foregroundStyle(Theme.secondary))
+                        }
+                    }
                     .textContentType(.password)
                     .focused($focus, equals: .password)
                     .onSubmit(signInWithEmail)
+                    Button(showPassword ? "Hide" : "Show") { showPassword.toggle() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.secondary)
+                }
             }
             Button(action: signInWithEmail) {
                 if busy { ProgressView().tint(.white) } else { Text("Sign In") }
@@ -94,12 +105,10 @@ struct SignInView: View {
 
     private var jellyfinForm: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Sign in").font(.system(size: 30, weight: .bold))
-            Text(model.accountsEnabled ? "With the username you use for Jellyfin." : "Signing in to \(model.serverName).")
-                .foregroundStyle(Theme.secondary)
+            Text("Enter your info to sign in").font(.system(size: 28, weight: .bold))
             ErrorNote(message: error)
-            FieldBox(label: "Username") {
-                TextField("", text: $username)
+            FieldBox {
+                TextField("", text: $username, prompt: Text("Username").foregroundStyle(Theme.secondary))
                     .textContentType(.username)
                     .autocorrectionDisabled()
                     #if os(iOS)
@@ -108,8 +117,8 @@ struct SignInView: View {
                     .focused($focus, equals: .username)
                     .onSubmit { focus = .password }
             }
-            FieldBox(label: "Password") {
-                SecureField("", text: $password)
+            FieldBox {
+                SecureField("", text: $password, prompt: Text("Password").foregroundStyle(Theme.secondary))
                     .textContentType(.password)
                     .focused($focus, equals: .password)
                     .onSubmit(signInWithJellyfin)
@@ -122,22 +131,26 @@ struct SignInView: View {
         }
     }
 
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if model.accountsEnabled {
-                Button(useJellyfin ? "Sign in with your email instead" : "Use a Jellyfin username instead") {
-                    error = nil
-                    password = ""
-                    useJellyfin.toggle()
-                    focus = useJellyfin ? .username : .email
-                }
-            }
-            Button("Change server (\(model.server?.host() ?? ""))") { model.changeServer() }
+    private var help: [String] {
+        var lines = ["Signing in to \(model.serverName) (\(model.server?.host() ?? ""))."]
+        if model.accountsEnabled && !jellyfinOnly {
+            lines.append("Forgot your password? Ask whoever runs this server to send you a reset link.")
         }
-        .buttonStyle(.plain)
-        .font(.callout)
-        .foregroundStyle(Theme.secondary)
-        .padding(.top, 20)
+        return lines
+    }
+
+    private var helpActions: [(title: String, action: () -> Void)] {
+        var actions: [(title: String, action: () -> Void)] = []
+        if model.accountsEnabled {
+            actions.append((useJellyfin ? "Sign in with your email instead" : "Use a Jellyfin username instead", {
+                error = nil
+                password = ""
+                useJellyfin.toggle()
+                focus = useJellyfin ? .username : .email
+            }))
+        }
+        actions.append(("Use a different server", { model.changeServer() }))
+        return actions
     }
 
     private func nextFromEmail() {

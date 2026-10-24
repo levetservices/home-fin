@@ -12,7 +12,7 @@ public struct JellyfinClient: Sendable {
     let http: HTTP
 
     /// Fields every row card, the billboard and More Info need.
-    public static let itemFields = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ChildCount,DateCreated,PremiereDate,Status"
+    public static let itemFields = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,RunTimeTicks,ChildCount,DateCreated,DateLastMediaAdded,PremiereDate,Status"
     static let imageTypes = "Primary,Backdrop,Thumb,Logo"
 
     public init(server: URL, device: DeviceIdentity, token: String? = nil, userId: String? = nil, session: URLSession = .shared) {
@@ -237,5 +237,98 @@ public struct JellyfinClient: Sendable {
         if let url = imageURL(item.id, .logo, tag: item.imageTags?["Logo"], maxWidth: maxWidth) { return url }
         if let parent = item.parentLogoItemId { return imageURL(parent, .logo, tag: item.parentLogoImageTag, maxWidth: maxWidth) }
         return nil
+    }
+}
+
+// MARK: - More of the library
+
+extension JellyfinClient {
+    /// "Series & Films You've Liked" (thumbs up), most recently played first.
+    public func liked(limit: Int = 30) async throws -> [Item] {
+        try await items(["IncludeItemTypes": "Movie,Series", "Filters": "Likes", "SortBy": "DatePlayed,DateCreated",
+                         "SortOrder": "Descending", "Limit": String(limit)])
+    }
+
+    /// Films and series added in the last `days` days, newest first (the bell's list).
+    public func arrivals(days: Int = 14, limit: Int = 12, now: Date = Date()) async throws -> [Item] {
+        let latest = try await latest(limit: limit * 2)
+        let cutoff = now.addingTimeInterval(-Double(days) * 86_400)
+        return latest
+            .filter { ($0.isMovie || $0.isSeries) && (HomePlanner.date($0.dateCreated) ?? .distantPast) >= cutoff }
+            .sorted { (HomePlanner.date($0.dateCreated) ?? .distantPast) > (HomePlanner.date($1.dateCreated) ?? .distantPast) }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    /// Genre names that have films or series, for the Categories menu.
+    public func genres(scope: HomeScope = .all) async throws -> [String] {
+        let result: ItemsResult = try await get("/Genres", ["userId": uid, "Recursive": "true", "IncludeItemTypes": scope.itemTypes,
+                                                            "SortBy": "SortName"])
+        return result.items.compactMap(\.name)
+    }
+
+    /// A category page: everything in a genre, best rated first.
+    public func items(inGenre genre: String, scope: HomeScope = .all, limit: Int = 200) async throws -> [Item] {
+        try await items(["Genres": genre, "IncludeItemTypes": scope.itemTypes, "SortBy": "CommunityRating,SortName",
+                         "SortOrder": "Descending", "Limit": String(limit)])
+    }
+
+    /// Saves a position (or watched) without a playback session: offline viewing catching up,
+    /// or "Remove from Row" (position 0 drops a title from Continue Watching).
+    public func savePosition(_ itemId: String, seconds: Double, played: Bool? = nil, lastPlayed: Date? = nil) async throws {
+        var body: [String: Any] = ["PlaybackPositionTicks": Int64(max(0, seconds) * ticksPerSecond)]
+        if let played { body["Played"] = played }
+        if let lastPlayed { body["LastPlayedDate"] = ISO8601DateFormatter().string(from: lastPlayed) }
+        try await send("/UserItems/\(itemId)/UserData", query: ["userId": uid], json: body)
+    }
+
+    public func removeFromContinueWatching(_ item: Item) async throws {
+        try await savePosition(item.id, seconds: 0)
+    }
+
+    /// An image without its cache tag, for screens that only have an id (the profile picker's
+    /// backdrop). Jellyfin serves artwork without a sign-in.
+    public func untaggedImageURL(_ itemId: String, _ type: ImageType, maxWidth: Int) -> URL {
+        HTTP.url(server, "/Items/\(itemId)/Images/\(type.rawValue)", ["maxWidth": String(maxWidth), "quality": "85"])
+    }
+
+    /// The web app's page for a title, for Share.
+    public func webURL(for item: Item) -> URL {
+        let id = item.isEpisode ? (item.seriesId ?? item.id) : item.id
+        return URL(string: HTTP.url(server, "/web/").absoluteString + "#/details?id=\(id)") ?? server
+    }
+
+    /// A page of the web app ("homefin/account", "homefin/profiles/manage").
+    public func webURL(page: String) -> URL {
+        URL(string: HTTP.url(server, "/web/").absoluteString + "#/" + page) ?? server
+    }
+}
+
+/// The pills under Home's header: everything, just series, or just films.
+public enum HomeScope: String, CaseIterable, Sendable {
+    case all, series, films
+
+    public var title: String {
+        switch self {
+        case .all: return "Home"
+        case .series: return "Series"
+        case .films: return "Films"
+        }
+    }
+
+    var itemTypes: String {
+        switch self {
+        case .all: return "Movie,Series"
+        case .series: return "Series"
+        case .films: return "Movie"
+        }
+    }
+
+    public func includes(_ item: Item) -> Bool {
+        switch self {
+        case .all: return true
+        case .series: return item.isSeries || item.isEpisode || item.type == "Season"
+        case .films: return item.isMovie
+        }
     }
 }

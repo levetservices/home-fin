@@ -31,6 +31,7 @@ public struct Item: Codable, Hashable, Identifiable, Sendable {
     public var collectionType: String?
     public var status: String?
     public var dateCreated: String?
+    public var dateLastMediaAdded: String?
     public var premiereDate: String?
     public var userData: UserItemData?
     public var people: [Person]?
@@ -45,7 +46,7 @@ public struct Item: Codable, Hashable, Identifiable, Sendable {
         case parentLogoItemId = "ParentLogoItemId", parentLogoImageTag = "ParentLogoImageTag"
         case seriesId = "SeriesId", seriesName = "SeriesName", seriesPrimaryImageTag = "SeriesPrimaryImageTag", seasonId = "SeasonId"
         case indexNumber = "IndexNumber", parentIndexNumber = "ParentIndexNumber", childCount = "ChildCount"
-        case collectionType = "CollectionType", status = "Status", dateCreated = "DateCreated"
+        case collectionType = "CollectionType", status = "Status", dateCreated = "DateCreated", dateLastMediaAdded = "DateLastMediaAdded"
         case premiereDate = "PremiereDate", userData = "UserData", people = "People", mediaSources = "MediaSources"
     }
 
@@ -70,6 +71,33 @@ public struct Item: Codable, Hashable, Identifiable, Sendable {
         if let percent = userData?.playedPercentage, percent > 0, percent < 100 { return percent / 100 }
         guard let ticks = userData?.playbackPositionTicks, let total = runTimeTicks, total > 0, ticks > 0 else { return nil }
         return min(1, Double(ticks) / Double(total))
+    }
+
+    public var badges: VideoBadges {
+        var badges = VideoBadges()
+        guard let source = mediaSources?.first else { return badges }
+        if let video = source.video {
+            let width = video.width ?? 0, height = video.height ?? 0
+            if width >= 3200 || height >= 1800 { badges.resolution = "4K" } else if width >= 1200 || height >= 700 { badges.resolution = "HD" }
+            let range = video.videoRangeType ?? ""
+            badges.dolbyVision = range.hasPrefix("DOVI")
+            badges.hdr = !badges.dolbyVision && (range.hasPrefix("HDR") || range == "HLG")
+        }
+        badges.subtitles = !source.subtitleStreams.isEmpty
+        return badges
+    }
+
+    /// Netflix's red ribbon on a poster: "Recently Added" for a new title, "New Episodes" for a
+    /// series that had episodes added in the last two weeks.
+    public func ribbon(now: Date = Date()) -> String? {
+        let fortnight: TimeInterval = 14 * 86_400
+        if (isMovie || isSeries), let created = HomePlanner.date(dateCreated), now.timeIntervalSince(created) < fortnight {
+            return "Recently Added"
+        }
+        if isSeries, let added = HomePlanner.date(dateLastMediaAdded), now.timeIntervalSince(added) < fortnight {
+            return "New Episodes"
+        }
+        return nil
     }
 
     /// "S2:E4" for episodes.
@@ -121,17 +149,33 @@ public struct Person: Codable, Hashable, Sendable {
 public struct MediaSource: Codable, Hashable, Sendable {
     public var id: String?
     public var container: String?
+    public var size: Int64?
+    public var bitrate: Int?
     public var supportsDirectPlay: Bool?
     public var supportsDirectStream: Bool?
     public var supportsTranscoding: Bool?
     public var transcodingUrl: String?
     public var mediaStreams: [MediaStream]?
+    public var defaultAudioStreamIndex: Int?
+    public var defaultSubtitleStreamIndex: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id = "Id", container = "Container", supportsDirectPlay = "SupportsDirectPlay"
+        case id = "Id", container = "Container", size = "Size", bitrate = "Bitrate", supportsDirectPlay = "SupportsDirectPlay"
         case supportsDirectStream = "SupportsDirectStream", supportsTranscoding = "SupportsTranscoding"
         case transcodingUrl = "TranscodingUrl", mediaStreams = "MediaStreams"
+        case defaultAudioStreamIndex = "DefaultAudioStreamIndex", defaultSubtitleStreamIndex = "DefaultSubtitleStreamIndex"
     }
+
+    public init(id: String? = nil, container: String? = nil, size: Int64? = nil, mediaStreams: [MediaStream]? = nil) {
+        self.id = id
+        self.container = container
+        self.size = size
+        self.mediaStreams = mediaStreams
+    }
+
+    public var video: MediaStream? { mediaStreams?.first { $0.type == "Video" } }
+    public var audioStreams: [MediaStream] { (mediaStreams ?? []).filter { $0.type == "Audio" } }
+    public var subtitleStreams: [MediaStream] { (mediaStreams ?? []).filter { $0.type == "Subtitle" } }
 }
 
 public struct MediaStream: Codable, Hashable, Sendable {
@@ -139,12 +183,37 @@ public struct MediaStream: Codable, Hashable, Sendable {
     public var codec: String?
     public var language: String?
     public var displayTitle: String?
+    public var title: String?
     public var index: Int?
+    public var width: Int?
     public var height: Int?
+    public var channels: Int?
+    public var isDefault: Bool?
+    public var isExternal: Bool?
+    /// "SDR", "HDR10", "HLG", "DOVI", "DOVIWithHDR10" …
+    public var videoRangeType: String?
 
     enum CodingKeys: String, CodingKey {
-        case type = "Type", codec = "Codec", language = "Language", displayTitle = "DisplayTitle", index = "Index", height = "Height"
+        case type = "Type", codec = "Codec", language = "Language", displayTitle = "DisplayTitle", title = "Title", index = "Index"
+        case width = "Width", height = "Height", channels = "Channels", isDefault = "IsDefault", isExternal = "IsExternal"
+        case videoRangeType = "VideoRangeType"
     }
+
+    public init(type: String? = nil, codec: String? = nil, index: Int? = nil, width: Int? = nil, height: Int? = nil) {
+        self.type = type
+        self.codec = codec
+        self.index = index
+        self.width = width
+        self.height = height
+    }
+}
+
+/// The little quality badges after the rating: 4K / HD, HDR, Dolby Vision, subtitles.
+public struct VideoBadges: Hashable, Sendable {
+    public var resolution: String?
+    public var dolbyVision = false
+    public var hdr = false
+    public var subtitles = false
 }
 
 public struct ItemsResult: Codable, Sendable {

@@ -34,7 +34,7 @@ All three are built, pushed and checked in a real browser against Jellyfin
 | Badges, ratings, play | `src/homefin/ui/badges.ts` (TOP 10 + ribbons), `rating.ts` (BBFC colour circles), `play.ts` (series play = next episode) |
 | More Info pop-up | `src/homefin/moreInfo/moreInfo.{ts,scss}` |
 | Recommender | `src/homefin/recs/` — `features.ts`, `taste.ts`, `score.ts`, `plan.ts` (pure, unit-tested in `recs.test.ts`), `index.ts` (Jellyfin / service I/O, caches). Rendered by `sections/recommendations.ts`, wired in `homesections.js`. |
-| Native app (iPhone / iPad / Mac) | `apple/` — SwiftUI app in `apple/HomeFin/`, Xcode project generated from `apple/project.yml` (XcodeGen), non-UI code in the `apple/HomeFinKit/` Swift package (Jellyfin + accounts clients, playback plan, `HomePlanner` = Swift port of the web home plan). Build + TestFlight steps: `apple/README.md` |
+| Native app (iPhone / iPad / Mac) | `apple/` — SwiftUI app in `apple/HomeFin/`, Xcode project generated from `apple/project.yml` (XcodeGen), non-UI code in the `apple/HomeFinKit/` Swift package (Jellyfin + accounts clients, playback plan with audio / subtitle choice, `HomePlanner` = Swift port of the web home plan, `Downloads.swift` = download source + on-device index). Build + TestFlight steps: `apple/README.md` |
 
 ## Behaviour worth knowing
 
@@ -147,14 +147,20 @@ the secret).
 ## Not done / not verified
 
 * **The native app (`apple/`) has never been compiled for Apple platforms**
-  (written in a Linux container). HomeFinKit builds and its 11 tests pass
-  on Linux, including 4 against the local Jellyfin + accounts service
-  (sign-in, profile session, home plan, HLS transcode URL, progress reports,
-  requests search); every SwiftUI file passes `swiftc -parse`, and
-  `project.yml` generates a valid project with XcodeGen 2.42. Expect a round
-  of small compile fixes on the first Xcode build. Not built in the app yet:
-  account management, admin settings, People, downloads for offline viewing,
-  and a tvOS version.
+  (written in a Linux container). It's laid out like the Netflix iPhone app
+  (from the owner's screenshots) with Liquid Glass via `Theme/Glass.swift`
+  (iOS / macOS 26; frosted fallback on 18 / 15). Needs Xcode 26. HomeFinKit
+  builds and its 18 tests pass on Linux, including 6 against the local
+  Jellyfin + accounts service (sign-in, profile session, home plan and the
+  Series / Films filters, HLS URL, progress reports, both download qualities
+  returning real MP4, offline position sync, liked / arrivals / genres,
+  requests search). Every SwiftUI file passes `swiftc -parse` and
+  `project.yml` generates with XcodeGen 2.42. Expect a round of small compile
+  fixes on the first Xcode build. Not in the app: account management, admin
+  settings, People (all in the web app), trailers, and a tvOS version.
+* Jellyfin's HLS playlist always covers the whole title from 0:00
+  (`StartTimeTicks` doesn't shift it), so the player seeks to the resume point
+  for streams as well as files.
 * **Not tested on real devices or a TV.** Phone width was checked in desktop
   Chromium only; Jellyfin's TV layout (`layoutManager.tv`) and *Sign in a TV*
   with a real Quick Connect code were not exercised.

@@ -12,6 +12,8 @@ import UIKit
 final class AppModel {
     enum Phase: Equatable {
         case launching
+        /// Signed out: the poster mosaic and Sign In.
+        case welcome
         /// Ask for the server address.
         case server
         /// Email + password (Home Fin accounts) or Jellyfin username + password.
@@ -30,12 +32,27 @@ final class AppModel {
     var me: HomeFinMe?
     var avatars: [String: AvatarPreset] = [:]
     private(set) var session: SavedSession?
-    /// What the player shows; set to play something from anywhere.
+    /// Signed in, but the server can't be reached: only downloads work.
+    var isOffline = false
+
+    /// The title page being shown (a sheet over everything, as on Netflix).
+    var detail: Item?
+    /// What the player shows; set with `play(_:)`.
     var nowPlaying: Item?
+    /// The player opens over the title page when it was started from there.
+    var playerOverDetail = false
     /// Bumped when something changes what Home shows (thumbs, My List, a finished episode).
     var homeRevision = 0
+    /// Titles in a Top 10 row today (the little red TOP 10 badge on posters).
+    var top10Ids: Set<String> = []
+    /// Films and series added recently, for the bell.
+    var arrivals: [Item] = []
+    var unseenArrivals = 0
 
     let device: DeviceIdentity
+    let preferences = Preferences()
+    let network = NetworkStatus()
+    let downloads = DownloadManager()
     private let store: SessionStore
     private let defaults = UserDefaults.standard
 
@@ -66,18 +83,23 @@ final class AppModel {
 
     /// The accounts service, as the current viewer (their Jellyfin token rides along).
     var accounts: AccountsClient? {
-        guard let server, accountsEnabled else { return nil }
+        guard let server, accountsEnabled, !isOffline else { return nil }
         return AccountsClient(server: server, jellyfinToken: session?.token)
     }
 
+    /// Artwork before signing in (the profile picker, the welcome mosaic).
+    var publicJellyfin: JellyfinClient? {
+        server.map { JellyfinClient(server: $0, device: device) }
+    }
+
+    var userId: String? { session?.userId }
     var viewerName: String { session?.viewerName ?? "" }
     var isAdmin: Bool { session?.isAdministrator == true || me?.account.isAdmin == true }
     var currentProfile: HomeFinProfile? { session?.profile }
 
-    /// Streaming quality from Settings: nil is "Auto".
+    /// The streaming cap for the connection we're on right now.
     var maxBitrate: Int? {
-        get { defaults.object(forKey: "homefin.maxBitrate") as? Int }
-        set { defaults.set(newValue, forKey: "homefin.maxBitrate") }
+        preferences.maxBitrate(onMobileData: network.isExpensive)
     }
 
     // MARK: start-up
@@ -87,14 +109,23 @@ final class AppModel {
             session = saved
             server = saved.server
             await loadServerDetails(saved.server)
-            // Still valid? (A revoked token or disabled account means sign in again.)
-            if (try? await jellyfin?.currentUser()) != nil {
+            do {
+                _ = try await jellyfin?.currentUser()
                 if accountsEnabled { me = try? await AccountsClient(server: saved.server).me() }
-                withAnimation(Theme.spring) { phase = .main }
+                await enterMain()
                 return
+            } catch let error as HomeFinError where error.isUnauthorized {
+                // A revoked token or disabled account: sign in again.
+                session = nil
+                store.clear()
+            } catch {
+                // No connection: downloads still play.
+                if !downloads.records(for: saved.userId).isEmpty {
+                    isOffline = true
+                    withAnimation(Theme.spring) { phase = .main }
+                    return
+                }
             }
-            session = nil
-            store.clear()
         }
         if let text = defaults.string(forKey: "homefin.server"), let url = URL(string: text) {
             server = url
@@ -104,10 +135,30 @@ final class AppModel {
                 withAnimation(Theme.spring) { phase = .profiles }
                 return
             }
-            withAnimation(Theme.spring) { phase = .signIn }
-            return
         }
-        withAnimation(Theme.spring) { phase = .server }
+        withAnimation(Theme.spring) { phase = .welcome }
+    }
+
+    /// Welcome → Sign In: the address first if we don't have one.
+    func beginSignIn() {
+        withAnimation(Theme.spring) { phase = server == nil ? .server : .signIn }
+    }
+
+    /// Try the server again from offline mode.
+    func reconnect() async {
+        guard let jellyfin else { return }
+        if (try? await jellyfin.currentUser()) != nil {
+            isOffline = false
+            if let server { await loadServerDetails(server) }
+            await enterMain()
+        }
+    }
+
+    private func enterMain() async {
+        isOffline = false
+        withAnimation(Theme.spring) { phase = .main }
+        if let jellyfin { await downloads.sync(with: jellyfin) }
+        await refreshArrivals()
     }
 
     private func loadServerDetails(_ url: URL) async {
@@ -171,7 +222,9 @@ final class AppModel {
         store.save(saved)
         session = saved
         homeRevision += 1
-        withAnimation(Theme.spring) { phase = .main }
+        top10Ids = []
+        arrivals = []
+        Task { await enterMain() }
     }
 
     func reloadProfiles() async {
@@ -180,18 +233,21 @@ final class AppModel {
     }
 
     func switchProfiles() {
+        detail = nil
         Task { await reloadProfiles() }
         withAnimation(Theme.spring) { phase = me == nil ? .signIn : .profiles }
     }
 
     func signOut() async {
+        detail = nil
+        nowPlaying = nil
         await jellyfin?.logout()
         if let server, accountsEnabled { await AccountsClient(server: server).logout() }
         store.clear()
         session = nil
         me = nil
-        nowPlaying = nil
-        withAnimation(Theme.spring) { phase = server == nil ? .server : .signIn }
+        isOffline = false
+        withAnimation(Theme.spring) { phase = .welcome }
     }
 
     /// A 401 from Jellyfin mid-session: the token was revoked (password changed, account disabled).
@@ -207,7 +263,69 @@ final class AppModel {
         profile.flatMap { avatars[$0.avatar] }
     }
 
+    // MARK: watching
+
+    /// Opens a title's page. Episodes open their series.
+    func show(_ item: Item) {
+        let target = item.isEpisode ? Item(id: item.seriesId ?? item.id, name: item.seriesName, type: "Series") : item
+        guard detail != nil else {
+            detail = target
+            return
+        }
+        // Another title's page is open: let it close before the next one opens.
+        detail = nil
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            detail = target
+        }
+    }
+
     func play(_ item: Item) {
+        if !isOffline, network.isExpensive, preferences.mobileData == .wifiOnly, downloads.localFile(for: item.id) == nil {
+            streamingBlocked = true
+            return
+        }
+        playerOverDetail = detail != nil
         nowPlaying = item
+    }
+
+    /// Mobile Data Usage is "Wi-Fi Only" and we're on mobile data.
+    var streamingBlocked = false
+
+    // MARK: the bell
+
+    private var bellKey: String { "homefin.bellSeen.\(userId ?? "")" }
+
+    func refreshArrivals() async {
+        guard let jellyfin, !isOffline else { return }
+        let fresh = (try? await jellyfin.arrivals()) ?? []
+        let seen = defaults.double(forKey: bellKey)
+        arrivals = fresh
+        unseenArrivals = fresh.filter { ($0.dateCreatedDate?.timeIntervalSince1970 ?? 0) > seen }.count
+    }
+
+    func markArrivalsSeen() {
+        defaults.set(Date().timeIntervalSince1970, forKey: bellKey)
+        unseenArrivals = 0
+    }
+
+    // MARK: welcome mosaic
+
+    /// Poster addresses remembered from the last Home, for the signed-out welcome screen.
+    var welcomePosters: [URL] {
+        (defaults.stringArray(forKey: "homefin.welcomePosters") ?? []).compactMap(URL.init(string:))
+    }
+
+    func rememberPosters(_ urls: [URL]) {
+        guard urls.count >= 6 else { return }
+        defaults.set(urls.prefix(12).map(\.absoluteString), forKey: "homefin.welcomePosters")
+    }
+}
+
+extension Item {
+    var dateCreatedDate: Date? {
+        guard let dateCreated else { return nil }
+        let trimmed = dateCreated.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression)
+        return ISO8601DateFormatter().date(from: trimmed.hasSuffix("Z") ? trimmed : trimmed + "Z")
     }
 }

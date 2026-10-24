@@ -1,7 +1,8 @@
 import HomeFinKit
 import SwiftUI
 
-/// Search the library; titles that aren't here yet can be requested right from the results.
+/// Netflix's Search: a glass field, "Recommended series & films" as a list until you type, then
+/// a poster grid. Titles that aren't on the server yet can be requested from the results.
 struct SearchView: View {
     var requests: RequestsConfig?
     @Environment(AppModel.self) private var model
@@ -12,62 +13,72 @@ struct SearchView: View {
     @State private var suggestions: [Item] = []
     @State private var searching = false
     @State private var requesting: MediaResult?
+    @State private var scrolled = false
+    @FocusState private var focused: Bool
 
-    private var columns: [GridItem] { [GridItem(.adaptive(minimum: compact ? 104 : 150), spacing: 10)] }
+    private var columns: [GridItem] { [GridItem(.adaptive(minimum: compact ? 104 : 150), spacing: 8)] }
+    private var typing: Bool { query.trimmingCharacters(in: .whitespaces).count >= 2 }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    if query.trimmingCharacters(in: .whitespaces).count < 2 {
-                        if !suggestions.isEmpty {
-                            Text("Recommended for you").font(.system(size: 19, weight: .bold))
-                            grid(suggestions)
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    if !typing {
+                        Text("Recommended series & films").font(.system(size: 19, weight: .bold))
+                        ForEach(suggestions) { item in
+                            SuggestionRow(item: item)
                         }
                     } else {
                         if results.isEmpty && notHere.isEmpty && !searching {
                             ContentUnavailableView.search(text: query)
                         }
-                        if !results.isEmpty { grid(results) }
+                        if !results.isEmpty {
+                            Text("Series & Films").font(.system(size: 19, weight: .bold))
+                            LazyVGrid(columns: columns, spacing: 10) {
+                                ForEach(results) { item in
+                                    Button { model.show(item) } label: { PosterCard(item: item, width: nil) }
+                                        .buttonStyle(CardButtonStyle())
+                                }
+                            }
+                        }
                         if !notHere.isEmpty {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Not here yet").font(.system(size: 19, weight: .bold))
                                 Text(requests?.policy == "approve" ? "Ask for it and it'll be added once an admin approves." : "Ask for it and it'll be added.")
                                     .font(.callout).foregroundStyle(Theme.secondary)
                             }
-                            .padding(.top, 10)
+                            .padding(.top, 14)
                             LazyVGrid(columns: columns, spacing: 14) {
                                 ForEach(notHere) { result in
-                                    Button { requesting = result } label: { RequestPoster(result: result, width: compact ? 104 : 150) }
+                                    Button { requesting = result } label: { RequestPoster(result: result, width: nil) }
                                         .buttonStyle(CardButtonStyle())
                                 }
                             }
                         }
                     }
                 }
-                .padding(Theme.gutter)
+                .padding(.horizontal, Theme.gutter)
+                .padding(.bottom, 40)
                 .animation(.easeOut(duration: 0.25), value: results)
                 .animation(.easeOut(duration: 0.25), value: notHere)
+                .animation(.easeOut(duration: 0.25), value: typing)
+            }
+            .scrollDismissesKeyboard(.immediately)
+            .trackScrolled($scrolled)
+            .pinnedHeader(scrolled: scrolled) {
+                VStack(spacing: 6) {
+                    TabHeader { Text("Search").font(.system(size: 28, weight: .bold)) }
+                    GlassSearchField(prompt: "Search series, films…", text: $query, focus: $focused)
+                        .padding(.horizontal, Theme.gutter)
+                        .padding(.bottom, 10)
+                }
             }
             .homeFinBackground()
-            .navigationTitle("Search")
-            .searchable(text: $query, prompt: "Films and shows")
-            .navigationDestination(for: Item.self) { item in
-                DetailView(itemId: item.isEpisode ? (item.seriesId ?? item.id) : item.id)
-            }
+            .hideNavigationBar()
             .task(id: query) { await search() }
             .task { await loadSuggestions() }
             .sheet(item: $requesting) { result in
                 RequestSheet(result: result, config: requests)
-            }
-        }
-    }
-
-    private func grid(_ items: [Item]) -> some View {
-        LazyVGrid(columns: columns, spacing: 14) {
-            ForEach(items) { item in
-                NavigationLink(value: item) { PosterCard(item: item, width: compact ? 104 : 150) }
-                    .buttonStyle(CardButtonStyle())
             }
         }
     }
@@ -98,7 +109,45 @@ struct SearchView: View {
 
     private func loadSuggestions() async {
         guard suggestions.isEmpty, let jellyfin = model.jellyfin else { return }
-        suggestions = (try? await jellyfin.items(["IncludeItemTypes": "Movie,Series", "SortBy": "Random", "Limit": "18",
+        suggestions = (try? await jellyfin.items(["IncludeItemTypes": "Movie,Series", "SortBy": "Random", "Limit": "24",
                                                   "Filters": "IsUnplayed"])) ?? []
+    }
+}
+
+/// A suggestion: 16:9 still with its badges, the title, and a play circle at the end.
+struct SuggestionRow: View {
+    var item: Item
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Button { model.show(item) } label: {
+                HStack(spacing: 14) {
+                    Artwork(url: model.jellyfin?.landscapeURL(item, maxWidth: 500), placeholder: item.name)
+                        .frame(width: 146, height: 74)
+                        .overlay(alignment: .topLeading) {
+                            if model.top10Ids.contains(item.id) { Top10Badge(scale: 0.8) }
+                        }
+                        .overlay(alignment: .bottom) {
+                            if let ribbon = item.ribbon() { Ribbon(text: ribbon).scaleEffect(0.85, anchor: .bottom) }
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    Text(item.name ?? "")
+                        .font(.system(size: 16, weight: .semibold))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Button { model.play(item) } label: {
+                Image(systemName: "play.circle")
+                    .font(.system(size: 36, weight: .thin))
+            }
+            .buttonStyle(PressScaleStyle())
+            .accessibilityLabel("Play \(item.name ?? "")")
+        }
+        .contextMenu { TitleMenu(item: item) }
     }
 }
