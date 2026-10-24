@@ -40,14 +40,18 @@ struct BillboardView: View {
 
     private var phoneCard: some View {
         Button { model.show(item) } label: {
-            Artwork(url: artURL)
-                .scaleEffect(drift ? 1.05 : 1)
+            // The card sets the shape; wide artwork fills it, cropped, rather than sizing it.
+            Color.clear
                 .aspectRatio(0.7, contentMode: .fit)
                 .frame(maxWidth: .infinity)
+                .background {
+                    Artwork(url: artURL).scaleEffect(drift ? 1.05 : 1)
+                }
                 .overlay {
                     LinearGradient(colors: [.clear, .black.opacity(0.25), .black.opacity(0.85)], startPoint: .center, endPoint: .bottom)
                 }
                 .clipped()
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .overlay(alignment: .bottom) {
