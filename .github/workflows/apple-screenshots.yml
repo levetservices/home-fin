@@ -63,34 +63,42 @@ jobs:
           test -d build/Build/Products/Debug-iphonesimulator/HomeFin.app
 
       - name: Screenshots
+        timeout-minutes: 20
         working-directory: apple
         run: |
           APP=build/Build/Products/Debug-iphonesimulator/HomeFin.app
           BUNDLE=uk.co.levetmedia.homefin
           mkdir -p shots
+          # macOS has no `timeout`; perl's alarm does the same.
+          limit() { local s=$1; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
           shoot() { # device name screen wait
-            xcrun simctl launch --terminate-running-process "$1" $BUNDLE -demo -demoScreen "$3" > /dev/null
+            echo "::group::$2 $3"
+            limit 60 xcrun simctl launch --terminate-running-process "$1" $BUNDLE -demo -demoScreen "$3" || echo "launch failed ($?)"
             sleep "$4"
-            xcrun simctl io "$1" screenshot "shots/$2-$3.png"
+            limit 60 xcrun simctl io "$1" screenshot "shots/$2-$3.png" || echo "screenshot failed ($?)"
+            echo "::endgroup::"
           }
           for DEV in "$PHONE" "$PAD"; do
-            xcrun simctl boot "$DEV" || true
-            xcrun simctl bootstatus "$DEV" -b
-            xcrun simctl ui "$DEV" appearance dark
-            xcrun simctl status_bar "$DEV" override --time 20:31 --dataNetwork wifi --wifiMode active --wifiBars 3 \
-              --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
-            xcrun simctl install "$DEV" "$APP"
+            echo "booting $DEV"
+            limit 240 xcrun simctl boot "$DEV" || true
+            limit 400 xcrun simctl bootstatus "$DEV" -b || echo "bootstatus gave up ($?)"
+            limit 60 xcrun simctl ui "$DEV" appearance dark || true
+            limit 60 xcrun simctl status_bar "$DEV" override --time 20:31 --dataNetwork wifi --wifiMode active --wifiBars 3 \
+              --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
+            limit 180 xcrun simctl install "$DEV" "$APP" || echo "install failed ($?)"
           done
           for SCREEN in welcome signin profiles home series detail search mine profilesSheet settings player; do
-            shoot "$PHONE" iphone "$SCREEN" 9
+            shoot "$PHONE" iphone "$SCREEN" 10
           done
           for SCREEN in profiles home detail player; do
-            shoot "$PAD" ipad "$SCREEN" 9
+            shoot "$PAD" ipad "$SCREEN" 10
           done
           ls -la shots
 
       - name: Mac screenshot
+        if: always()
         continue-on-error: true
+        timeout-minutes: 10
         working-directory: apple
         run: |
           set -o pipefail
