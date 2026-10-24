@@ -589,17 +589,9 @@ final class PlaybackEngine {
         guard let model else { return }
         stopped = false
         var item = item
-        var plan: PlaybackPlan
-        #if DEBUG
-        if DemoMode.isOn, let clip = DemoMode.clip, let jellyfin = model.jellyfin {
-            // The demo plays its bundled clip, partway in, with the title's real tracks listed.
-            item = (try? await jellyfin.item(item.id)) ?? item
-            let source = item.mediaSources?.first
-            plan = PlaybackPlan(url: clip, itemId: item.id, mediaSourceId: item.id, playMethod: "DirectPlay", startSeconds: 6)
-            plan.audioStreams = source?.audioStreams ?? []
-            plan.subtitleStreams = source?.subtitleStreams ?? []
-            plan.audioStreamIndex = source?.defaultAudioStreamIndex
-            plan.subtitleStreamIndex = -1
+        let plan: PlaybackPlan
+        if let demo = await demoPlan(for: &item) {
+            plan = demo
         } else if let file = model.downloads.localFile(for: item.id), audio == nil, subtitle == nil {
             let record = model.downloads.record(item.id)
             if let record, record.needsSync || model.isOffline { item = record.playableItem }
@@ -635,6 +627,23 @@ final class PlaybackEngine {
         if let jellyfin = model.jellyfin, !plan.isOffline { await jellyfin.reportStart(plan, seconds: plan.startSeconds) }
         nowPlaying.update(title: title, subtitle: item.seriesName, duration: duration, position: position, rate: 1)
         await loadEpisodes(for: item)
+    }
+
+    /// `-demo` plays its bundled clip, partway in, with the title's real tracks listed.
+    private func demoPlan(for item: inout Item) async -> PlaybackPlan? {
+        #if DEBUG
+        guard DemoMode.isOn, let clip = DemoMode.clip, let jellyfin = model?.jellyfin else { return nil }
+        item = (try? await jellyfin.item(item.id)) ?? item
+        let source = item.mediaSources?.first
+        var plan = PlaybackPlan(url: clip, itemId: item.id, mediaSourceId: item.id, playMethod: "DirectPlay", startSeconds: 6)
+        plan.audioStreams = source?.audioStreams ?? []
+        plan.subtitleStreams = source?.subtitleStreams ?? []
+        plan.audioStreamIndex = source?.defaultAudioStreamIndex
+        plan.subtitleStreamIndex = -1
+        return plan
+        #else
+        return nil
+        #endif
     }
 
     /// The episodes of this one's season, for the Episodes panel and Next Episode.
