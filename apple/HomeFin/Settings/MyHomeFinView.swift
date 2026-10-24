@@ -10,7 +10,13 @@ struct MyHomeFinView: View {
     @State private var liked: [Item] = []
     @State private var myList: [Item] = []
     @State private var scrolled = false
-    @State private var showProfiles = false
+    @State private var showProfiles: Bool = {
+        #if DEBUG
+        return DemoMode.isOn && ["profilesSheet", "settings"].contains(DemoMode.screen)
+        #else
+        return false
+        #endif
+    }()
 
     var body: some View {
         NavigationStack {

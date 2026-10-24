@@ -105,6 +105,12 @@ final class AppModel {
     // MARK: start-up
 
     func start() async {
+        #if DEBUG
+        if DemoMode.isOn {
+            await startDemo()
+            return
+        }
+        #endif
         if let saved = store.load() {
             session = saved
             server = saved.server
@@ -321,6 +327,39 @@ final class AppModel {
         defaults.set(urls.prefix(12).map(\.absoluteString), forKey: "homefin.welcomePosters")
     }
 }
+
+#if DEBUG
+extension AppModel {
+    /// `-demo`: signs in to the built-in demo server and opens the screen `-demoScreen` names.
+    func startDemo() async {
+        let server = DemoMode.server
+        self.server = server
+        await loadServerDetails(server)
+        me = try? await AccountsClient(server: server).me()
+        if let catalogue = try? await JellyfinClient(server: server, device: device).signedIn(token: "demo", userId: "demo").items(["IncludeItemTypes": "Movie,Series"]) {
+            rememberPosters(catalogue.compactMap { publicJellyfin?.posterURL($0, maxWidth: 300) })
+        }
+        switch DemoMode.screen {
+        case "welcome":
+            withAnimation(Theme.spring) { phase = .welcome }
+        case "signin":
+            withAnimation(Theme.spring) { phase = .signIn }
+        case "profiles":
+            withAnimation(Theme.spring) { phase = .profiles }
+        default:
+            session = SavedSession(server: server, userId: "demo-hayden", token: "demo-token", userName: "Hayden",
+                                   isAdministrator: true, profile: me?.profiles.first)
+            await enterMain()
+            try? await Task.sleep(for: .seconds(1.5))
+            switch DemoMode.screen {
+            case "detail": detail = Item(id: DemoMode.featuredId, name: "Blackwater County", type: "Series")
+            case "player": play(Item(id: DemoMode.featuredId, name: "Blackwater County", type: "Series"))
+            default: break
+            }
+        }
+    }
+}
+#endif
 
 extension Item {
     var dateCreatedDate: Date? {

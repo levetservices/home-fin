@@ -18,9 +18,22 @@ extension EnvironmentValues {
 struct MainView: View {
     @Environment(AppModel.self) private var model
     @State private var requests: RequestsConfig?
-    @State private var tab = Tab.home
+    @State private var tab = MainView.initialTab
 
     enum Tab: Hashable { case home, requests, search, mine }
+
+    private static var initialTab: Tab {
+        #if DEBUG
+        switch DemoMode.isOn ? DemoMode.screen : "" {
+        case "search": return .search
+        case "requests": return .requests
+        case "mine", "profilesSheet", "settings": return .mine
+        default: return .home
+        }
+        #else
+        return .home
+        #endif
+    }
 
     private var showRequests: Bool { requests?.enabled == true || requests?.isAdmin == true }
 

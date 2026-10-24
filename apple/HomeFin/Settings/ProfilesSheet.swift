@@ -7,7 +7,13 @@ struct ProfilesSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @State private var showSettings = false
+    @State private var showSettings: Bool = {
+        #if DEBUG
+        return DemoMode.isOn && DemoMode.screen == "settings"
+        #else
+        return false
+        #endif
+    }()
     @State private var showTV = false
     @State private var confirmSignOut = false
     @State private var locked: HomeFinProfile?

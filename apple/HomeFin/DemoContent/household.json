@@ -1,0 +1,171 @@
+{
+ "serverName": "Home Fin",
+ "account": {
+  "id": 1,
+  "email": "hayden@example.com",
+  "name": "Hayden",
+  "isAdmin": true,
+  "disabled": false
+ },
+ "profiles": [
+  {
+   "id": 1,
+   "name": "Hayden",
+   "avatar": "parrot",
+   "maturity": "adult",
+   "locked": false,
+   "jellyfinUserId": "demo-hayden"
+  },
+  {
+   "id": 2,
+   "name": "Dad",
+   "avatar": "fox",
+   "maturity": "adult",
+   "locked": true,
+   "jellyfinUserId": "demo-dad"
+  },
+  {
+   "id": 3,
+   "name": "Alana",
+   "avatar": "unicorn",
+   "maturity": "kids",
+   "locked": false,
+   "jellyfinUserId": "demo-alana"
+  },
+  {
+   "id": 4,
+   "name": "Mason",
+   "avatar": "rhino",
+   "maturity": "kids",
+   "locked": false,
+   "jellyfinUserId": "demo-mason"
+  },
+  {
+   "id": 5,
+   "name": "Nan & Pa",
+   "avatar": "bear",
+   "maturity": "adult",
+   "locked": false,
+   "jellyfinUserId": "demo-nan"
+  }
+ ],
+ "avatars": [
+  {
+   "key": "parrot",
+   "emoji": "🦜",
+   "from": "#1e3a5f",
+   "to": "#0b1a2e"
+  },
+  {
+   "key": "fox",
+   "emoji": "🦊",
+   "from": "#e50914",
+   "to": "#7a0410"
+  },
+  {
+   "key": "unicorn",
+   "emoji": "🦄",
+   "from": "#8e44ad",
+   "to": "#3b0f57"
+  },
+  {
+   "key": "rhino",
+   "emoji": "🦏",
+   "from": "#f5b400",
+   "to": "#8a5a12"
+  },
+  {
+   "key": "bear",
+   "emoji": "🐻‍❄️",
+   "from": "#2f9e6e",
+   "to": "#0b4d33"
+  }
+ ],
+ "trending": {
+  "days": 7,
+  "series": [
+   {
+    "id": "s00aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 5,
+    "plays": 20
+   },
+   {
+    "id": "s01aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 4,
+    "plays": 19
+   },
+   {
+    "id": "s02aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 3,
+    "plays": 18
+   },
+   {
+    "id": "s03aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 2,
+    "plays": 17
+   },
+   {
+    "id": "s04aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 1,
+    "plays": 16
+   },
+   {
+    "id": "s05aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 0,
+    "plays": 15
+   }
+  ],
+  "movies": [
+   {
+    "id": "m06aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 5,
+    "plays": 15
+   },
+   {
+    "id": "m07aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 4,
+    "plays": 14
+   },
+   {
+    "id": "m08aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 3,
+    "plays": 13
+   },
+   {
+    "id": "m09aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 2,
+    "plays": 12
+   },
+   {
+    "id": "m10aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 1,
+    "plays": 11
+   },
+   {
+    "id": "m11aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 5,
+    "plays": 10
+   },
+   {
+    "id": "m12aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 4,
+    "plays": 9
+   },
+   {
+    "id": "m13aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 3,
+    "plays": 8
+   },
+   {
+    "id": "m14aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 2,
+    "plays": 7
+   },
+   {
+    "id": "m15aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "viewers": 1,
+    "plays": 6
+   }
+  ]
+ }
+}

@@ -30,6 +30,11 @@ targets:
       - path: HomeFin
         excludes:
           - HomeFin.entitlements
+          - DemoContent
+      # The `-demo` library (Debug builds only; see Demo/make_demo.py).
+      - path: HomeFin/DemoContent
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: HomeFinKit
     info:
@@ -71,3 +76,6 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": HomeFin/HomeFin.entitlements
         "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": YES
+      configs:
+        Release:
+          EXCLUDED_SOURCE_FILE_NAMES: DemoContent

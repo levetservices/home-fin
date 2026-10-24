@@ -6,7 +6,12 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.isCompactLayout) private var compact
-    @State private var scope = HomeScope.all
+    @State private var scope: HomeScope = {
+        #if DEBUG
+        if DemoMode.isOn && DemoMode.screen == "series" { return .series }
+        #endif
+        return .all
+    }()
     @State private var plans: [HomeScope: HomePlan] = [:]
     @State private var error: String?
     @State private var scrolled = false

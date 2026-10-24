@@ -1,0 +1,110 @@
+name: Apple app screenshots
+
+# Runs the app in its built-in demo (`-demo`, Debug builds) on simulators and saves screenshots
+# of each screen as an artifact.
+on:
+  push:
+    branches: [home-fin]
+    paths:
+      - 'apple/HomeFin/**'
+      - 'apple/Demo/**'
+      - '.github/workflows/apple-screenshots.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: apple-screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: macos-26
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+
+      - name: Generate the Xcode project
+        working-directory: apple
+        run: |
+          brew install xcodegen
+          xcodegen
+
+      - name: Pick simulators
+        run: |
+          xcrun simctl list devices available -j > devices.json
+          python3 - <<'EOF' >> "$GITHUB_ENV"
+          import json
+          devices = [d for runtime, list_ in json.load(open('devices.json'))['devices'].items()
+                     if 'iOS-26' in runtime for d in list_]
+          def pick(prefixes):
+              for prefix in prefixes:
+                  for d in devices:
+                      if d['name'].startswith(prefix):
+                          return d['udid'], d['name']
+              raise SystemExit(f'no simulator for {prefixes}')
+          phone = pick(['iPhone 17 Pro', 'iPhone 16 Pro', 'iPhone'])
+          pad = pick(['iPad Pro 13', 'iPad Pro', 'iPad Air', 'iPad'])
+          print(f'PHONE={phone[0]}')
+          print(f'PAD={pad[0]}')
+          print(f'PHONE_NAME={phone[1]}')
+          print(f'PAD_NAME={pad[1]}')
+          EOF
+          cat "$GITHUB_ENV"
+
+      - name: Build for the simulator
+        working-directory: apple
+        run: |
+          set -o pipefail
+          xcodebuild build -project HomeFin.xcodeproj -scheme HomeFin -configuration Debug \
+            -destination "id=$PHONE" -derivedDataPath build CODE_SIGNING_ALLOWED=NO \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          test -d build/Build/Products/Debug-iphonesimulator/HomeFin.app
+
+      - name: Screenshots
+        working-directory: apple
+        run: |
+          APP=build/Build/Products/Debug-iphonesimulator/HomeFin.app
+          BUNDLE=uk.co.levetmedia.homefin
+          mkdir -p shots
+          shoot() { # device name screen wait
+            xcrun simctl launch --terminate-running-process "$1" $BUNDLE -demo -demoScreen "$3" > /dev/null
+            sleep "$4"
+            xcrun simctl io "$1" screenshot "shots/$2-$3.png"
+          }
+          for DEV in "$PHONE" "$PAD"; do
+            xcrun simctl boot "$DEV" || true
+            xcrun simctl bootstatus "$DEV" -b
+            xcrun simctl ui "$DEV" appearance dark
+            xcrun simctl status_bar "$DEV" override --time 20:31 --dataNetwork wifi --wifiMode active --wifiBars 3 \
+              --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+            xcrun simctl install "$DEV" "$APP"
+          done
+          for SCREEN in welcome signin profiles home series detail search mine profilesSheet settings player; do
+            shoot "$PHONE" iphone "$SCREEN" 9
+          done
+          for SCREEN in profiles home detail player; do
+            shoot "$PAD" ipad "$SCREEN" 9
+          done
+          ls -la shots
+
+      - name: Mac screenshot
+        continue-on-error: true
+        working-directory: apple
+        run: |
+          set -o pipefail
+          xcodebuild build -project HomeFin.xcodeproj -scheme HomeFin -configuration Debug \
+            -destination 'platform=macOS' -derivedDataPath build-mac CODE_SIGNING_ALLOWED=NO \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          open -n build-mac/Build/Products/Debug/HomeFin.app --args -demo -demoScreen home
+          sleep 12
+          screencapture -x shots/mac-home.png
+          osascript -e 'quit app "HomeFin"' || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: apple/shots
+          if-no-files-found: warn

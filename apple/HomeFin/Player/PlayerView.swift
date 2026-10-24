@@ -506,6 +506,10 @@ struct PlayerView: View {
     /// Controls fade after a few seconds of playing.
     private func scheduleHide() {
         hideTask?.cancel()
+        #if DEBUG
+        // Keep the controls up for screenshots.
+        if DemoMode.isOn { return }
+        #endif
         hideTask = Task {
             try? await Task.sleep(for: .seconds(4))
             guard !Task.isCancelled, engine.isPlaying, panel == nil, scrubbing == nil else { return }
@@ -585,8 +589,18 @@ final class PlaybackEngine {
         guard let model else { return }
         stopped = false
         var item = item
-        let plan: PlaybackPlan
-        if let file = model.downloads.localFile(for: item.id), audio == nil, subtitle == nil {
+        var plan: PlaybackPlan
+        #if DEBUG
+        if DemoMode.isOn, let clip = DemoMode.clip, let jellyfin = model.jellyfin {
+            // The demo plays its bundled clip, partway in, with the title's real tracks listed.
+            item = (try? await jellyfin.item(item.id)) ?? item
+            let source = item.mediaSources?.first
+            plan = PlaybackPlan(url: clip, itemId: item.id, mediaSourceId: item.id, playMethod: "DirectPlay", startSeconds: 6)
+            plan.audioStreams = source?.audioStreams ?? []
+            plan.subtitleStreams = source?.subtitleStreams ?? []
+            plan.audioStreamIndex = source?.defaultAudioStreamIndex
+            plan.subtitleStreamIndex = -1
+        } else if let file = model.downloads.localFile(for: item.id), audio == nil, subtitle == nil {
             let record = model.downloads.record(item.id)
             if let record, record.needsSync || model.isOffline { item = record.playableItem }
             plan = PlaybackPlan(url: file, itemId: item.id, mediaSourceId: item.id, playMethod: "DirectPlay",

@@ -12,6 +12,9 @@ struct HomeFinApp: App {
     init() {
         // Artwork is fetched a lot; keep plenty of it (Jellyfin sends cacheable images).
         URLCache.shared = URLCache(memoryCapacity: 96 * 1024 * 1024, diskCapacity: 768 * 1024 * 1024)
+        #if DEBUG
+        if DemoMode.isOn { DemoMode.start() }
+        #endif
         #if os(iOS)
         // Play with the silent switch on, in the background, over AirPlay and in Picture in Picture.
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
