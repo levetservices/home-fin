@@ -170,7 +170,7 @@ struct BrandTitle: View {
 extension View {
     /// Pins a header above scrolling content: on iOS 26 content blurs softly under it (Liquid
     /// Glass's scroll edge), before that it gets a dark material once you scroll.
-    @ViewBuilder func pinnedHeader<Header: View>(scrolled: Bool, @ViewBuilder _ header: () -> Header) -> some View {
+    @ViewBuilder func pinnedHeader<Header: View>(scrolled: Bool, @ViewBuilder _ header: @escaping () -> Header) -> some View {
         if #available(iOS 26.0, macOS 26.0, *) {
             safeAreaBar(edge: .top) { header() }
                 .softScrollEdge()
