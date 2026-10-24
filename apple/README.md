@@ -67,18 +67,38 @@ back and they'll be fixed.
 TestFlight is Apple's beta app: people install it from the App Store, then
 install Home Fin through it. No App Store listing needed.
 
-1. **Create the app record** at [App Store Connect](https://appstoreconnect.apple.com)
+You don't need a Mac for this: GitHub's Macs archive, sign and upload the app
+(`.github/workflows/apple-testflight.yml`). Once, set up:
+
+1. **Register the bundle ID.** [developer.apple.com](https://developer.apple.com/account/resources/identifiers/list)
+   → Certificates, IDs & Profiles → Identifiers → **+** → App IDs → App.
+   Description "Home Fin", Bundle ID *Explicit*: `uk.co.levetmedia.homefin`.
+2. **Create the app record.** [App Store Connect](https://appstoreconnect.apple.com)
    → Apps → **+** → New App. Tick **iOS** and **macOS**, name "Home Fin"
-   (pick another if it's taken; this name is only what testers see), and
-   choose the bundle ID from step 1 above.
-2. **Upload a build.** In Xcode pick **Any iOS Device (arm64)** as the
-   destination, then **Product → Archive**. When the Organizer opens:
-   **Distribute App → TestFlight & App Store → Distribute**.
-   Do it again with **Any Mac** as the destination for the Mac version.
-3. **Bump the build number** before every new upload: target → General →
-   *Build* (or `CURRENT_PROJECT_VERSION` in `project.yml`). Apple rejects a
-   repeated number.
-4. **Invite people.** App Store Connect → your app → **TestFlight**:
+   (if it's taken, add a word; testers see this name), language English (UK),
+   bundle ID from step 1, SKU anything (e.g. `homefin`).
+3. **Make an API key** for GitHub. App Store Connect → Users and Access →
+   Integrations → App Store Connect API → Team Keys → **+**. Name "GitHub",
+   access **Admin** (needed so it can create the signing certificate). Download
+   the `.p8` file (you only get one chance) and note the **Key ID** and the
+   **Issuer ID** above the list.
+4. **Add four secrets to the repo.** GitHub → levetservices/home-fin → Settings
+   → Secrets and variables → Actions → New repository secret:
+   * `APPLE_TEAM_ID`: your Team ID (developer.apple.com → Membership details)
+   * `ASC_KEY_ID`: the Key ID
+   * `ASC_ISSUER_ID`: the Issuer ID
+   * `ASC_KEY_P8`: open the `.p8` in a text editor and paste all of it
+
+Then, for each build: GitHub → Actions → **Apple app → TestFlight** → Run
+workflow (choose iOS, macOS or both), or push a commit with `[testflight]` in
+its message. About 15 minutes later the build is in App Store Connect →
+TestFlight. Build numbers count up by themselves.
+
+(Prefer Xcode? Pick **Any iOS Device** → Product → Archive → Distribute App →
+TestFlight & App Store, then the same with **Any Mac**, bumping *Build* each
+time.)
+
+5. **Invite people.** App Store Connect → your app → **TestFlight**:
    * *Internal testing*: up to 100 people on your developer team. No review,
      available minutes after upload.
    * *External testing*: anyone with an email address, or a **public link**
@@ -86,7 +106,7 @@ install Home Fin through it. No App Store listing needed.
      Review (usually within a day). In "Test Information" explain it's a
      personal media-server client and give a test server login, since the
      reviewer needs to get past sign-in.
-5. People install **TestFlight** from the App Store (iPhone, iPad or Mac),
+6. People install **TestFlight** from the App Store (iPhone, iPad or Mac),
    open your invite link, and tap Install. Builds expire after 90 days, so
    upload a fresh one now and then.
 

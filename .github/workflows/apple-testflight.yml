@@ -1,0 +1,155 @@
+name: Apple app → TestFlight
+
+# Archives the iPhone/iPad and Mac app, signs it with an App Store Connect API key (Xcode's
+# automatic, cloud-managed signing), and uploads it to TestFlight. Build numbers come from the run
+# number, so each upload is new.
+#
+# Run it from the Actions tab, or push a commit whose message contains [testflight].
+# Without the secrets below it does a dry run: an unsigned Release archive, to prove it builds.
+#
+# Repository secrets (Settings → Secrets and variables → Actions):
+#   APPLE_TEAM_ID   your 10-character Team ID (developer.apple.com → Membership)
+#   ASC_KEY_ID      the API key's Key ID
+#   ASC_ISSUER_ID   the Issuer ID shown above the keys list
+#   ASC_KEY_P8      the contents of the downloaded AuthKey_XXXXXX.p8 file
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'iOS, macOS or both'
+        default: both
+        type: choice
+        options: [both, iOS, macOS]
+  push:
+    branches: [home-fin]
+    paths: ['apple/**', '.github/workflows/apple-testflight.yml']
+
+concurrency:
+  group: apple-testflight
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[testflight]')
+    name: ${{ matrix.platform }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: iOS
+            destination: generic/platform=iOS
+            app: Products/Applications/HomeFin.app
+          - platform: macOS
+            destination: generic/platform=macOS
+            app: Products/Applications/HomeFin.app
+    env:
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - name: Skip this platform?
+        id: wanted
+        run: |
+          WANT="${{ github.event.inputs.platforms || 'both' }}"
+          if [ "$WANT" = both ] || [ "$WANT" = "${{ matrix.platform }}" ]; then echo "go=yes" >> "$GITHUB_OUTPUT"; else echo "go=no" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.wanted.outputs.go == 'yes'
+
+      - name: Use the newest Xcode 26
+        if: steps.wanted.outputs.go == 'yes'
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && xcodebuild -version
+
+      - name: Generate the Xcode project
+        if: steps.wanted.outputs.go == 'yes'
+        working-directory: apple
+        run: brew install xcodegen && xcodegen
+
+      - name: Signing key
+        id: key
+        if: steps.wanted.outputs.go == 'yes'
+        run: |
+          if [ -n "$TEAM_ID" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER_ID" ] && [ -n "$KEY_P8" ]; then
+            mkdir -p ~/.appstoreconnect/private_keys
+            printf '%s\n' "$KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8
+            echo "signed=yes" >> "$GITHUB_OUTPUT"
+            echo "Signing as team $TEAM_ID; build $BUILD_NUMBER"
+          else
+            echo "signed=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::No App Store Connect secrets yet, so this is a dry run (unsigned Release archive). See the comment at the top of apple-testflight.yml."
+          fi
+
+      - name: Archive (signed)
+        if: steps.wanted.outputs.go == 'yes' && steps.key.outputs.signed == 'yes'
+        working-directory: apple
+        run: |
+          set -o pipefail
+          xcodebuild archive -project HomeFin.xcodeproj -scheme HomeFin -configuration Release \
+            -destination '${{ matrix.destination }}' -archivePath build/HomeFin.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8 \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID" \
+            | tee archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" archive.log
+
+      - name: Archive (dry run, unsigned)
+        if: steps.wanted.outputs.go == 'yes' && steps.key.outputs.signed != 'yes'
+        working-directory: apple
+        run: |
+          set -o pipefail
+          xcodebuild archive -project HomeFin.xcodeproj -scheme HomeFin -configuration Release \
+            -destination '${{ matrix.destination }}' -archivePath build/HomeFin.xcarchive \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" CODE_SIGNING_ALLOWED=NO \
+            | tee archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" archive.log
+
+      - name: Check what would ship
+        if: steps.wanted.outputs.go == 'yes'
+        working-directory: apple/build/HomeFin.xcarchive
+        run: |
+          APP="${{ matrix.app }}"
+          ls "$APP" > /dev/null
+          if find "$APP" -name DemoContent | grep -q .; then echo "::error::The demo library is in the Release build"; exit 1; fi
+          find "$APP" -name PrivacyInfo.xcprivacy | grep -q . || { echo "::error::No privacy manifest in the app"; exit 1; }
+          INFO=$(find "$APP" -maxdepth 2 -name Info.plist | head -1)
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' -c 'Print :CFBundleShortVersionString' -c 'Print :CFBundleVersion' "$INFO"
+          du -sh "$APP"
+
+      - name: Upload to App Store Connect (TestFlight)
+        if: steps.wanted.outputs.go == 'yes' && steps.key.outputs.signed == 'yes'
+        working-directory: apple
+        run: |
+          cat > ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          set -o pipefail
+          xcodebuild -exportArchive -archivePath build/HomeFin.xcarchive -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_$KEY_ID.p8 \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID" \
+            | tee export.log | grep -E "error|Upload succeeded|EXPORT (SUCCEEDED|FAILED)|Uploaded" || true
+          grep -qE "EXPORT SUCCEEDED|Upload succeeded" export.log
+          echo "::notice::${{ matrix.platform }} build $BUILD_NUMBER uploaded. It appears in App Store Connect → TestFlight after Apple finishes processing (usually 5–30 minutes)."
+
+      - name: Logs
+        if: failure()
+        working-directory: apple
+        run: grep -hE "error:|error " archive.log export.log 2>/dev/null | sort -u | head -60 || true
+
+      - name: Remove the key
+        if: always()
+        run: rm -rf ~/.appstoreconnect
