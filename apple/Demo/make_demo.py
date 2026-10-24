@@ -297,8 +297,8 @@ def main():
                 {'key': 'bear', 'emoji': '🐻‍❄️', 'from': '#2f9e6e', 'to': '#0b4d33'},
             ],
             'trending': {'days': 7,
-                         'series': [{'id': i['Id'], 'viewers': 5 - n, 'plays': 20 - n} for n, i in enumerate(x for x in items if x['Type'] == 'Series')][:6],
-                         'movies': [{'id': i['Id'], 'viewers': 5 - n % 5, 'plays': 15 - n} for n, i in enumerate(x for x in items if x['Type'] == 'Movie')][:10]},
+                         'series': [{'id': i['Id'], 'viewers': 5 - n, 'plays': 20 - n} for n, i in enumerate(x for x in items if x['Type'] == 'Series')][:4],
+                         'movies': [{'id': i['Id'], 'viewers': 5 - n % 5, 'plays': 15 - n} for n, i in enumerate(x for x in items if x['Type'] == 'Movie')][:6]},
         }, f, ensure_ascii=False, indent=1)
 
     # A 20-second clip for the player: the Remains backdrop drifting slowly, with a quiet tone.

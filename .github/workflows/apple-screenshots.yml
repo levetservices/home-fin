@@ -18,7 +18,7 @@ concurrency:
 jobs:
   screenshots:
     runs-on: macos-26
-    timeout-minutes: 50
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -63,7 +63,7 @@ jobs:
           test -d build/Build/Products/Debug-iphonesimulator/HomeFin.app
 
       - name: Screenshots
-        timeout-minutes: 20
+        timeout-minutes: 50
         working-directory: apple
         run: |
           APP=build/Build/Products/Debug-iphonesimulator/HomeFin.app
@@ -73,9 +73,9 @@ jobs:
           limit() { local s=$1; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
           shoot() { # device name screen wait
             echo "::group::$2 $3"
-            limit 60 xcrun simctl launch --terminate-running-process "$1" $BUNDLE -demo -demoScreen "$3" || echo "launch failed ($?)"
+            limit 180 xcrun simctl launch --terminate-running-process "$1" $BUNDLE -demo -demoScreen "$3" || echo "launch failed ($?)"
             sleep "$4"
-            limit 60 xcrun simctl io "$1" screenshot "shots/$2-$3.png" || echo "screenshot failed ($?)"
+            limit 120 xcrun simctl io "$1" screenshot "shots/$2-$3.png" || echo "screenshot failed ($?)"
             echo "::endgroup::"
           }
           for DEV in "$PHONE" "$PAD"; do
@@ -85,30 +85,20 @@ jobs:
             limit 60 xcrun simctl ui "$DEV" appearance dark || true
             limit 60 xcrun simctl status_bar "$DEV" override --time 20:31 --dataNetwork wifi --wifiMode active --wifiBars 3 \
               --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
-            limit 180 xcrun simctl install "$DEV" "$APP" || echo "install failed ($?)"
+            # No "slide to type" tip over the sign-in keyboard.
+            limit 60 xcrun simctl spawn "$DEV" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
+            limit 240 xcrun simctl install "$DEV" "$APP" || echo "install failed ($?)"
+            # The first launch after install is slow; get it out of the way.
+            limit 240 xcrun simctl launch "$DEV" $BUNDLE -demo -demoScreen home > /dev/null || true
+            sleep 20
           done
           for SCREEN in welcome signin profiles home series detail search mine profilesSheet settings player; do
-            shoot "$PHONE" iphone "$SCREEN" 10
+            shoot "$PHONE" iphone "$SCREEN" 12
           done
           for SCREEN in profiles home detail player; do
-            shoot "$PAD" ipad "$SCREEN" 10
+            shoot "$PAD" ipad "$SCREEN" 12
           done
           ls -la shots
-
-      - name: Mac screenshot
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 10
-        working-directory: apple
-        run: |
-          set -o pipefail
-          xcodebuild build -project HomeFin.xcodeproj -scheme HomeFin -configuration Debug \
-            -destination 'platform=macOS' -derivedDataPath build-mac CODE_SIGNING_ALLOWED=NO \
-            | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
-          open -n build-mac/Build/Products/Debug/HomeFin.app --args -demo -demoScreen home
-          sleep 12
-          screencapture -x shots/mac-home.png
-          osascript -e 'quit app "HomeFin"' || true
 
       - uses: actions/upload-artifact@v4
         if: always()

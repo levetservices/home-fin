@@ -15,9 +15,8 @@ struct BillboardView: View {
     private var item: Item { billboard.item }
 
     private var artURL: URL? {
-        compact
-            ? (model.jellyfin?.posterURL(item, maxWidth: 900) ?? model.jellyfin?.backdropURL(item, maxWidth: 1080))
-            : model.jellyfin?.backdropURL(item, maxWidth: 1920)
+        // Textless art: posters usually have the title printed on, and the logo goes on top.
+        model.jellyfin?.backdropURL(item, maxWidth: compact ? 1600 : 1920) ?? model.jellyfin?.posterURL(item, maxWidth: 900)
     }
 
     var body: some View {

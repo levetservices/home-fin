@@ -87,14 +87,6 @@ struct TitlePage: View {
                 .overlay(alignment: .bottom) {
                     LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 70)
                 }
-                .overlay(alignment: .bottomLeading) {
-                    if let logo = model.jellyfin?.logoURL(item) {
-                        Artwork(url: logo, contentMode: .fit)
-                            .frame(maxWidth: compact ? 200 : 320, maxHeight: compact ? 60 : 100, alignment: .bottomLeading)
-                            .shadow(color: .black.opacity(0.6), radius: 8)
-                            .padding(Theme.gutter)
-                    }
-                }
                 .clipped()
             GlassGroup(spacing: 10) {
                 HStack(spacing: 10) {

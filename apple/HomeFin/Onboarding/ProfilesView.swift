@@ -47,7 +47,7 @@ struct ProfilesView: View {
     @ViewBuilder private var heroArt: some View {
         ZStack {
             if let hero, let jellyfin = model.publicJellyfin {
-                Artwork(url: jellyfin.untaggedImageURL(hero.id, .primary, maxWidth: 1200))
+                Artwork(url: jellyfin.untaggedImageURL(hero.id, .backdrop, maxWidth: 1600))
                     .transition(.opacity)
             } else {
                 RadialGradient(colors: [Color(hex: "#3a0d10"), .black], center: .top, startRadius: 0, endRadius: 700)
