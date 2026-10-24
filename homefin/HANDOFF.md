@@ -146,18 +146,19 @@ the secret).
 
 ## Not done / not verified
 
-* **The native app (`apple/`) has never been compiled for Apple platforms**
-  (written in a Linux container). It's laid out like the Netflix iPhone app
-  (from the owner's screenshots) with Liquid Glass via `Theme/Glass.swift`
-  (iOS / macOS 26; frosted fallback on 18 / 15). Needs Xcode 26. HomeFinKit
-  builds and its 18 tests pass on Linux, including 6 against the local
-  Jellyfin + accounts service (sign-in, profile session, home plan and the
-  Series / Films filters, HLS URL, progress reports, both download qualities
-  returning real MP4, offline position sync, liked / arrivals / genres,
-  requests search). Every SwiftUI file passes `swiftc -parse` and
-  `project.yml` generates with XcodeGen 2.42. Expect a round of small compile
-  fixes on the first Xcode build. Not in the app: account management, admin
-  settings, People (all in the web app), trailers, and a tvOS version.
+* **The native app (`apple/`) builds on GitHub's macOS runners** (Xcode 26.6,
+  iOS + macOS, no errors) via `.github/workflows/apple.yml`, which also runs
+  HomeFinKit's tests. `apple-screenshots.yml` runs the Debug app's built-in
+  demo (`-demo -demoScreen …`, `App/DemoServer.swift` + `DemoContent/` from
+  `apple/Demo/make_demo.py`) on iPhone and iPad simulators and uploads
+  screenshots (the hosted simulators are slow: ~1 min per command).
+  `apple-testflight.yml` archives, signs (App Store Connect API key, cloud
+  signing) and uploads to TestFlight; without the four secrets
+  (`APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`) it does an
+  unsigned Release dry run, which passes for both platforms. The app record in
+  App Store Connect has to be created by hand (see `apple/README.md`). Not
+  tried yet on a real device. Not in the app: account management, admin
+  settings, People (all in the web app), trailers, tvOS.
 * Jellyfin's HLS playlist always covers the whole title from 0:00
   (`StartTimeTicks` doesn't shift it), so the player seeks to the resume point
   for streams as well as files.
